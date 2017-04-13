@@ -12,9 +12,9 @@ from pygame import K_UP, K_DOWN, K_LEFT, K_RIGHT, K_COMMA, K_PERIOD, K_F15
 class ViewPort(pygame.Rect):
 
     def __init__(self, grid_points_left =10, 
-                       grid_points_right=10, 
+                       grid_points_right=9, 
                        grid_points_front=10, 
-                       grid_points_back =10):
+                       grid_points_back =9):
 
         pygame.Rect.__init__(self, 
             0,
@@ -112,7 +112,7 @@ class Survivor(pygame.sprite.DirtySprite):
         self.OldPos = self.Pos.copy()
         self.ViewPort = view_port
 
-        self.Energy = 150.
+        self.Energy = 50.
         self.CostMultiplier = Survivor.COST_MULT_LAND
 
         self.TileSize = size
