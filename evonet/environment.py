@@ -149,7 +149,6 @@ class Tile(pygame.sprite.DirtySprite):
 
         if self.FoodValue <= 0 and self.TileType == GRASS:
             env.score += env.rewards["positive"]
-            print("UPDATE UPDATE!")
             self.FoodValue = 0
             self.TileType = MUD
             self.scale_to(self.TileSize, self.Offset)
@@ -304,6 +303,7 @@ class EvoWorld():
             Start_X = self.rng.randint(1, self.MAPWIDTH  - 1)  # Lower Bound is inklusive
             Start_Y = self.rng.randint(1, self.MAPHEIGHT - 1)  # Upper Bound is exklusive
             Start_O = self.rng.randint(0, 4)
+            Start_O = 0
 
             NewAgent = Survivor(ID, self.ViewPort, Start_X, Start_Y, Start_O, self.TileSize, self.ClippingBorder)
             

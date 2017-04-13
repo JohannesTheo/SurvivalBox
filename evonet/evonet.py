@@ -34,8 +34,8 @@ class EvoNet(PyGameWrapper):
                   "down":       K_DOWN,
                   "left":       K_LEFT,
                   "right":      K_RIGHT,
-                  "turn_left":  K_COMMA,
-                  "turn_right": K_PERIOD,
+                  #"turn_left":  K_COMMA,
+                  #"turn_right": K_PERIOD,
                   "noop"      : K_F15,
                  }
 
@@ -127,9 +127,9 @@ class EvoNet(PyGameWrapper):
 
         """
 
-        return pygame.surfarray.array3d(
-            pygame.display.get_surface()).astype(np.uint8)
-        #return self.env.get_agent_views()  
+        #return pygame.surfarray.array3d(
+        #    pygame.display.get_surface()).astype(np.uint8)
+        return self.env.get_agent_views()  
     '''
     def tick(self, fps):
         """
@@ -222,7 +222,7 @@ class EvoNet(PyGameWrapper):
         else:
             self.env.reset()
 
-        print("Init")
+        #print("Init")
 
     
     def reset(self):
@@ -318,22 +318,22 @@ class EvoNet(PyGameWrapper):
                     # Pass the action to the active agent
                     if event.key == K_UP:
                         action_list[self.ActivePlayer] = self.ACTIONS["up"]
-                        print("U")
+                        #print("U")
                     elif event.key == K_DOWN:
                         action_list[self.ActivePlayer] = self.ACTIONS["down"]
-                        print("D")
+                        #print("D")
                     elif event.key == K_LEFT:
                         action_list[self.ActivePlayer] = self.ACTIONS["left"]
-                        print("L")
+                        #print("L")
                     elif event.key == K_RIGHT:
                         action_list[self.ActivePlayer] = self.ACTIONS["right"]
-                        print("R")
+                        #print("R")
                     elif event.key == K_COMMA:
                         action_list[self.ActivePlayer] = self.ACTIONS["turn_left"]
-                        print("T LEFT")
+                        #print("T LEFT")
                     elif event.key == K_PERIOD:
                         action_list[self.ActivePlayer] = self.ACTIONS["turn_right"]
-                        print("T RIGHT")
+                        #print("T RIGHT")
                     else:
                         action_list[self.ActivePlayer] = self.ACTIONS["noop"]              
                 
