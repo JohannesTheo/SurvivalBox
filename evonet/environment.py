@@ -6,6 +6,7 @@ import os
 # third party imports
 import numpy as np
 import pygame
+import pickle
 
 # local imports
 from .utils import ValueNoise2D
@@ -49,6 +50,11 @@ def generate_tile_map(width, height, water_percentage):
                                 "grass" : 0,
                                 "total" : 0,
                                 "check" : 0
+                                },
+                    "Meta"    : {
+                                "width" : width,
+                                "height": height,
+                                "water_percentage": water_percentage
                                 }
                 }
 
@@ -220,14 +226,36 @@ class EvoWorld():
         self.game_objects_group     = pygame.sprite.RenderUpdates()
         self.survivor_group         = pygame.sprite.RenderUpdates()
 
+    def save_map(self, file_name, dir):
+        if(self.START_MAP is None): raise Exception("No Map to save yet!")
+
+        with open(dir + file_name, 'wb') as file:
+            pickle.dump(self.START_MAP, file)
+
+    def load_map(self, file_name, dir):
+
+        with open(dir + file_name, 'rb') as file:
+            self.START_MAP = pickle.load(file)
+        
+        self.MAPWIDTH  = self.START_MAP["Meta"]["width"]
+        self.MAPHEIGHT = self.START_MAP["Meta"]["height"]
+        self.WATER_PERCENTAGE = self.START_MAP["Meta"]["water_percentage"]
+
+        ViewPort_Grid = self.ViewPort.get_grid_size()
+        self.MAX_VIEW_PORT = np.max(ViewPort_Grid)
+        self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
+        
+        self.MapSurface = pygame.Surface((self.MAPWIDTH  * self.TileSize  + 2 * self.ClippingBorder,
+                                          self.MAPHEIGHT * self.TileSize  + 2 * self.ClippingBorder))
+
+        self.reset()
+        return (self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
+    
+
     def init(self, rng, num_agents=1, view_port_dimensions={}):
 
         # Set the rng
         self.rng = rng
-
-        # If no map exists generate one
-        if(self.TileMap is not None): raise Exception("Environment is already initialized, use reset() instead!")
-        self.TileMap, self.START_MAP = generate_tile_map(self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
         
         # Set the number of agents
         self.NumAgents = num_agents
@@ -248,18 +276,23 @@ class EvoWorld():
         self.MapSurface = pygame.Surface((self.MAPWIDTH  * self.TileSize  + 2 * self.ClippingBorder,
                                           self.MAPHEIGHT * self.TileSize  + 2 * self.ClippingBorder))
 
-
+        # If no map exists generate one
+        if(self.TileMap is None):
+            self.TileMap, self.START_MAP = generate_tile_map(self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
+            
         # reuse the reset method to init groups and scale Sprites
         self.reset()
-        
+            
 
-    def reset(self):
+    def reset(self, new_map=False):
 
         self.score = 0
         
         # reset TileMap to StartMap or create a new one
-        self.TileMap = self.START_MAP["TileMap"].copy()
-        #self.TileMap, self.START_MAP = generate_tile_map(self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
+        if new_map:
+            self.TileMap, self.START_MAP = generate_tile_map(self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
+        else:
+            self.TileMap = self.START_MAP["TileMap"].copy()
         
         # Empty all groups, wasteful, could be done better by reuse or reset...
         self.everything_group.empty()      

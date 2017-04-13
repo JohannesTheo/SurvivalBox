@@ -26,7 +26,7 @@ class EvoNet(PyGameWrapper):
     MAP_CARDS      = 1
     MAP_MINI_CARDS = 2
 
-    def __init__(self, grid_width=52, grid_height=52, tile_size=8, water_percentage=0.5, num_agents=2):
+    def __init__(self, grid_width=52, grid_height=52, tile_size=8, water_percentage=0.5, num_agents=2, always_new_map=False):
         print("Welcome to EvoNet - survival mode")
 
         self.ACTIONS = {
@@ -46,6 +46,7 @@ class EvoNet(PyGameWrapper):
         self.NUM_AGENTS = num_agents
         self.random_agent = False
         self.env = None
+        self.ALWAYS_NEW_MAP = always_new_map
 
         self.PlayTime = 0
         self.ActivePlayer = 0
@@ -115,6 +116,16 @@ class EvoNet(PyGameWrapper):
         if draw_screen == True:
             pygame.display.update()
     '''
+    def save_map(self, file_name, dir="./"):
+        self.env.save_map(file_name, dir)        
+
+    def load_map(self, file_name, dir="./"):
+        if self.env is None: raise Exception("No Environment yet, init first please!")
+
+        self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE = self.env.load_map(file_name, dir)
+        self.screen_dim = self.env.get_screen_dimensions()
+        self.screen = pygame.display.set_mode(self.getScreenDims(), 0, 32)
+        
     
     def getScreenRGB(self):
         """
@@ -214,13 +225,13 @@ class EvoNet(PyGameWrapper):
             self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize)
             self.env.init(self.rng, self.NUM_AGENTS)
 
-            # chnage this also in scale_to...
+            # change this also in scale_to...
             # only change screen size if they are different from what we requested.
             self.screen_dim = self.env.get_screen_dimensions()
             self.screen = pygame.display.set_mode(self.getScreenDims(), 0, 32)
 
         else:
-            self.env.reset()
+            self.env.reset(self.ALWAYS_NEW_MAP)
 
         #print("Init")
 
