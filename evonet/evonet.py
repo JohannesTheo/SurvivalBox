@@ -36,8 +36,18 @@ class EvoNet(PyGameWrapper):
                   "right":      K_RIGHT,
                   #"turn_left":  K_COMMA,
                   #"turn_right": K_PERIOD,
-                  "noop"      : K_F15,
+                  "NOOP"      : K_F15,
                  }
+
+        self.ActionKeyMap = {
+
+                self.ACTIONS["up"]:    "Move Forward",
+                self.ACTIONS["down"]:  "Move Backward",
+                self.ACTIONS["left"]:  "Move Left",
+                self.ACTIONS["right"]: "Move Right",
+                self.ACTIONS["NOOP"]:  "Do nothing"
+        }
+
 
         self.Grid_Width  = grid_width
         self.Grid_Height = grid_height
@@ -211,6 +221,7 @@ class EvoNet(PyGameWrapper):
         """
         return self.actions.values()
     '''
+
     def init(self):
         """
         This is used to initialize the game, such reseting the score, lives, and player position.
@@ -324,7 +335,7 @@ class EvoNet(PyGameWrapper):
 
                     # Fill action list manually
                     for agent in range(self.NUM_AGENTS):
-                        action_list.append(self.ACTIONS["noop"])
+                        action_list.append(self.ACTIONS["NOOP"])
 
                     # Pass the action to the active agent
                     if event.key == K_UP:
@@ -346,10 +357,10 @@ class EvoNet(PyGameWrapper):
                         action_list[self.ActivePlayer] = self.ACTIONS["turn_right"]
                         #print("T RIGHT")
                     else:
-                        action_list[self.ActivePlayer] = self.ACTIONS["noop"]              
+                        action_list[self.ActivePlayer] = self.ACTIONS["NOOP"]              
                 
 
-        # random agent is activated choose Actions for every agent
+        # if random agent is activated choose Actions for every agent
         if self.random_agent:
 
             for agent in range(self.NUM_AGENTS):
