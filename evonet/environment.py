@@ -123,7 +123,11 @@ class EvoWorld():
 
         # If no map exists generate one
         if(self.START_MAP is None):
-            self.TileMap, self.START_MAP = map.generate_tile_map(self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
+            self.TileMap, self.START_MAP = map.generate_tile_map(self.MAPWIDTH, 
+                                                                 self.MAPHEIGHT, 
+                                                                 self.WATER_PERCENTAGE, 
+                                                                 self.TileSize, 
+                                                                 self.ClippingBorder)
             
         # reuse the reset method to init groups and scale Sprites
         self.reset()
@@ -135,9 +139,13 @@ class EvoWorld():
         
         # reset TileMap to StartMap or create a new one
         if new_map:
-            self.TileMap, self.START_MAP = map.generate_tile_map(self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
+            self.TileMap, self.START_MAP = map.generate_tile_map(self.MAPWIDTH, 
+                                                                 self.MAPHEIGHT, 
+                                                                 self.WATER_PERCENTAGE, 
+                                                                 self.TileSize, 
+                                                                 self.ClippingBorder)
         else:
-            self.TileMap = self.START_MAP["TileMap"].copy()
+            self.TileMap = self.START_MAP["RawMap"].copy()
         
         # Empty all groups, wasteful, could be done better by reuse or reset...
         self.everything_group.empty()      
