@@ -20,7 +20,7 @@ from .game_objects import Survivor
 
 class EvoNet(PyGameWrapper):
 
-    PIXEL_SCALES = [1, 2, 4, 8, 16, 32]
+    PIXEL_SCALES = [1, 2, 4, 8, 16]
     # RENDER_MODES
     MAP_ONLY       = 0
     MAP_CARDS      = 1
