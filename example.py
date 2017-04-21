@@ -1,42 +1,31 @@
+import numpy as np
+
+from ple import PLE
 from evonet import EvoNet
-from PIL import Image
-import matplotlib.pyplot as plt
 
-import cProfile
+game = EvoNet(grid_width =52, 
+              grid_height=52,
+              tile_size=4, 
+              water_percentage=0.5, 
+              num_agents=2)
 
-def run():
-    game = EvoNet( grid_width=52, grid_height=52, tile_size=8, water_percentage=0.5, num_agents=4)
+env = PLE(game, display_screen=True,
+                fps=100,
+                force_fps=False, 
+                num_steps=1, 
+                frame_skip=1, 
+                add_noop_action=False)
+env.init()
 
-    game._setup()
-    game.init()
+actions = list(env.game.getActions())
+print("Actions: {}".format(actions))
 
-    for x in range(3000):
-    #while True: 
-        if game.game_over():
-           
-            #break
-            game.reset()
-        #time.sleep(0.05)
-        #dt = game.clock.tick_busy_loop(30)
-        dt = game.clock.tick(30) 
-        #dt = 10
-        game.step(dt)
-        print(game.getScore())
+while True:
 
-        if x == 10001:
-            observations = game.getScreenRGB()
-            print(observations)
-            #img = Image.fromarray(observations[0], 'RGB')
-           # img = Image.fromarray(observations, 'RGB')
-            #img.save('my.png')
-          #  img.show()
+    if env.game_over():
+        env.reset_game()
 
-            imgplot = plt.imshow(observations)
-            plt.show()
-           
-        #print(game.step(dt))
-        #print(game.getScreenRGB())
-        #pygame.display.update()
+    next_action = np.random.choice(actions)
+    reward = env.act(next_action)
 
-run()
-#cProfile.run('run()', 'evo_sm.profile')
+   #print(env.getFrameNumber())
