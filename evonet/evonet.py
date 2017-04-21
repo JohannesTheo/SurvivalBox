@@ -26,7 +26,9 @@ class EvoNet(PyGameWrapper):
     MAP_CARDS      = 1
     MAP_MINI_CARDS = 2
 
-    def __init__(self, grid_width=52, grid_height=52, tile_size=8, water_percentage=0.5, num_agents=2, always_new_map=False):
+    def __init__(self, grid_width=52, grid_height=52, tile_size=8, water_percentage=0.5, 
+                 num_agents=2, always_new_map=False, view_port_dimensions={}):
+
         print("Welcome to EvoNet - survival mode")
 
         self.ACTIONS = {
@@ -57,6 +59,7 @@ class EvoNet(PyGameWrapper):
         self.random_agent = False
         self.env = None
         self.ALWAYS_NEW_MAP = always_new_map
+        self.view_port_dimensions = view_port_dimensions
 
         self.PlayTime = 0
         self.ActivePlayer = 0
@@ -234,7 +237,7 @@ class EvoNet(PyGameWrapper):
 
         if not self.env:
             self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize)
-            self.env.init(self.rng, self.NUM_AGENTS)
+            self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions)
 
             # change this also in scale_to...
             # only change screen size if they are different from what we requested.
@@ -291,10 +294,7 @@ class EvoNet(PyGameWrapper):
             This is the amount of time elapsed since the last frame in milliseconds.
 
         """
-
-        # convert dt to time per second
-        fixedDeltaTime = dt / 1000
-        self.PlayTime += fixedDeltaTime
+        self.PlayTime += dt / 1000
 
         # Print some basic info in window title
         text = "FPS: {0:.2f}   Playtime: {1:.2f}".format(self.clock.get_fps(), self.PlayTime)
@@ -303,6 +303,12 @@ class EvoNet(PyGameWrapper):
         
         # get all user events
         action_list = []
+
+        # if random agent is activated choose Actions for every agent
+        if self.random_agent:
+            action_list = [np.random.choice(list( self.ACTIONS.values())) for i in range(self.NUM_AGENTS)]
+        else:
+            action_list = [self.ACTIONS["NOOP"] for i in range(self.NUM_AGENTS)]
 
         for event in pygame.event.get():
             #print(event)
@@ -333,10 +339,6 @@ class EvoNet(PyGameWrapper):
                 # manual control only if no random agent is acting
                 if not self.random_agent:
 
-                    # Fill action list manually
-                    for agent in range(self.NUM_AGENTS):
-                        action_list.append(self.ACTIONS["NOOP"])
-
                     # Pass the action to the active agent
                     if event.key == K_UP:
                         action_list[self.ActivePlayer] = self.ACTIONS["up"]
@@ -359,15 +361,8 @@ class EvoNet(PyGameWrapper):
                     else:
                         action_list[self.ActivePlayer] = self.ACTIONS["NOOP"]              
                 
-
-        # if random agent is activated choose Actions for every agent
-        if self.random_agent:
-
-            for agent in range(self.NUM_AGENTS):
-                random_action = np.random.choice( list( self.ACTIONS.values()))
-                action_list.append(random_action)
         
-        self.env.update(self.screen, fixedDeltaTime, action_list)
+        self.env.update(self.screen, action_list)
         
         # While developing update display here, later automatic from _draw_frame
         pygame.display.update()
