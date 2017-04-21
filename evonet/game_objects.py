@@ -11,10 +11,10 @@ from pygame import K_UP, K_DOWN, K_LEFT, K_RIGHT, K_COMMA, K_PERIOD, K_F15
 
 class ViewPort(pygame.Rect):
 
-    def __init__(self, grid_points_left =10, 
-                       grid_points_right=9, 
-                       grid_points_front=10, 
-                       grid_points_back =9):
+    def __init__(self, grid_points_left, 
+                       grid_points_right, 
+                       grid_points_front, 
+                       grid_points_back):
 
         pygame.Rect.__init__(self, 
             0,
@@ -69,7 +69,7 @@ class Survivor(pygame.sprite.DirtySprite):
     COST_MOVE = 5.
     COST_ROTATE = 5.
     COST_MULT_LAND = 1
-    COST_MULT_WATER = 2
+    COST_MULT_WATER = 3
 
     # orientation
     UP    = 0
@@ -112,7 +112,7 @@ class Survivor(pygame.sprite.DirtySprite):
         self.OldPos = self.Pos.copy()
         self.ViewPort = view_port
 
-        self.Energy = 50.
+        self.Energy = 300.
         self.CostMultiplier = Survivor.COST_MULT_LAND
 
         self.TileSize = size
@@ -174,31 +174,30 @@ class Survivor(pygame.sprite.DirtySprite):
     def draw_as_ally(self, Surface):
         pygame.draw.rect(Surface, (0,0,255) ,self.rect)
 
-    def update(self, dt, action_list=[]):
+    def update(self, action_list):
+
+        action = action_list[self.ID]
+
+        # apply the 
+        self.Energy -= 1 * self.CostMultiplier
 
         # If Survivor is dead return
         if self.Energy <= 0:
             self.kill()
             return
 
-        # Save OldPos for resetting after border collision
+        # Save OldPos for resetting after collision
         self.OldPos = self.Pos.copy()
 
-        # Get Action based on ID (index), or set to NOOP if empty list
-        if not action_list:
-            action = K_F15
-        else:
-            action = action_list[self.ID]
-
         # In every case reduse Energy by the permanent Life Cost
-        self.Energy -= Survivor.COST_PERMANENT * dt * self.CostMultiplier
+        #self.Energy -= Survivor.COST_PERMANENT * dt * self.CostMultiplier
         #print("ENERGY: {}, COST_MULT: {}".format(self.Energy, self.CostMultiplier))
         
         # If the action is not NOOP apply MOVE Cost
-        if action != K_F15:
-            loss = Survivor.COST_MOVE * dt * 3 * self.CostMultiplier
+        #if action != K_F15:
+         #   loss = Survivor.COST_MOVE * dt * 3 * self.CostMultiplier
             #print("LOSS: {}:".format(loss))
-            self.Energy -= loss
+          #  self.Energy -= loss
 
         # Set the new Grid Position and Render Position based on the action
         orientation = self.Pos[2]
