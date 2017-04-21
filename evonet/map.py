@@ -22,7 +22,7 @@ MUD   = 4
 GRASS_GROWING = 5
 TREES_GROWING = 6
 
-resources = {0:'EOW', 1:'WATER',2:'DIRT',3:'GRASS', 4:'MUD', 5: 'GRASS_GROWING', 6: 'TREES_GROWING'}
+resources = {EOW:'EOW', WATER:'WATER', DIRT:'DIRT', GRASS:'GRASS', MUD:'MUD', GRASS_GROWING: 'GRASS_GROWING', TREES_GROWING: 'TREES_GROWING'}
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
 textures = {
@@ -35,12 +35,72 @@ textures = {
          MUD           : pygame.image.load(os.path.join(_DIR,'assets/dirt.png'))
            }
 
+def parse_height_map(width, height, water_percentage, height_map):
+    '''
+    Converts a value noise height map in a meaningful environment.
+    This is the place to define or change the map characteristics.
+    '''
+    RawMap  = np.zeros([height, width], dtype=int, order='F')
+    statistics = {"water" : 0, "land"  : 0, "dirt"  : 0, "grass" : 0, "total" : 0, "check" : 0}
 
-def generate_tile_map(width, height, water_percentage):
+    #Convert HightMap into a TileMap
+    for row in range(height):
+        for column in range(width):
+            
+            # EOW - end of world border
+            if row == 0 or row == (height - 1) or column == 0 or column == (width -1):
+            #if row < 22 or row > (height - 21) or column < 22 or column > (width -21):
+                RawMap[row,column] = EOW
+                continue
+
+            # water
+            if height_map[row,column] <= water_percentage:
+                RawMap[row,column] = WATER
+                statistics["water"] += 1
+                continue
+
+            # dirt
+            if height_map[row,column] > 0.7:
+                RawMap[row,column] = DIRT
+                statistics["dirt"] += 1
+                continue
+
+            # grass
+            if height_map[row,column] > water_percentage:
+                RawMap[row,column] = GRASS
+                statistics["grass"] += 1
+                continue
+
+    # compute some more stats
+    statistics["land"]  = statistics["dirt"] + statistics["grass"]
+    statistics["total"] = statistics["land"] + statistics["water"]
+    statistics["check"] = (width - 2) * (height - 2) # substract the Left/Right/Top/Down EOW border (-2)
+
+    return RawMap, statistics
+
+def convert_raw_map(width, height, raw_map, tile_size, clipping_border):
+    '''
+    Converts a the raw terrain information of the raw map into pygame sprite objects with appropriate scale and position
+    '''
+    TileMap = np.zeros([height, width], dtype=object, order='F')
+    for column in range(width):
+        for row in range(height):
+        
+            TileType = raw_map[column, row]
+            NewTile = Tile(column, row, TileType, tile_size, clipping_border)
+            TileMap[column, row] = NewTile
+
+    return TileMap
+
+def generate_tile_map(width, height, water_percentage, tile_size, clipping_border):
 
     # ! WE USE column based FORTRAN ORDER so we can get grid point column x,row y of the map by array[x,y]
-    TileMap = np.zeros([height, width], dtype=int, order='F')
+    #RawMap  = np.zeros([height, width], dtype=int, order='F')
+    #TileMap = np.zeros([height, width], dtype=int, order='F')
+
     START_MAP = {   "TileMap" : [],
+                    "RawMap"  : [],
+                    "Description" : resources,
                     "Stats"   : {
                                 "water" : 0,
                                 "land"  : 0,
@@ -61,44 +121,19 @@ def generate_tile_map(width, height, water_percentage):
     Vc.calculate()
     HeightMap = Vc.get_height_map()
 
-    # intermediate reference on STAR_MAPS["stats"] for better readability of code below:
-    Stats = START_MAP["Stats"]
+    # parse the hight map and create terrain
+    RawMap, Stats = parse_height_map(width, height, water_percentage, HeightMap)
+    START_MAP["Stats"] = Stats
+    
+    # convert the raw information of the map into a pygame friendly format
+    TileMap = convert_raw_map(width, height, RawMap, tile_size, clipping_border)
 
-    # Convert HightMap into a TileMap
-    for row in range(height):
-        for column in range(width):
-            
-            # EOW - end of world border
-            if row == 0 or row == (height - 1) or column == 0 or column == (width -1):
-            #if row < 22 or row > (height - 21) or column < 22 or column > (width -21):
-                TileMap[row,column] = EOW
-                continue
-
-            # water
-            if HeightMap[row,column] <= water_percentage:
-                TileMap[row,column] = WATER
-                Stats["water"] += 1
-                continue
-
-            # dirt
-            if HeightMap[row,column] > 0.7:
-                TileMap[row,column] = DIRT
-                Stats["dirt"] += 1
-                continue
-
-            # grass
-            if HeightMap[row,column] > water_percentage:
-                TileMap[row,column] = GRASS
-                Stats["grass"] += 1
-                continue
-            
     # make a copy of the final TileMap
+    START_MAP["RawMap"]  = np.copy(RawMap)
     START_MAP["TileMap"] = np.copy(TileMap)
 
-    # compute some more stats
-    Stats["land"] = Stats["dirt"] + Stats["grass"]
-    Stats["total"] = Stats["land"] + Stats["water"]
-    Stats["check"] = (width - 2) * (height - 2) # substract the Left/Right/Top/Down EOW border (-2)
+  
+
 
     # print the StartMaps statistics
     print("Total: {total} (check {check}) \n Water: {water} \n Land: {land} (Dirt: {dirt}, Grass: {grass})".format(
@@ -109,7 +144,7 @@ def generate_tile_map(width, height, water_percentage):
            dirt =Stats["dirt"],
            grass=Stats["grass"]))
 
-    return (TileMap, START_MAP)
+    return (RawMap, START_MAP)
 
 
 class Tile(pygame.sprite.DirtySprite):
