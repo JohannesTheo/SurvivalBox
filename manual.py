@@ -1,6 +1,4 @@
 import numpy as np
-
-from ple import PLE
 from evonet import EvoNet
 
 agent_view_port = {
@@ -17,23 +15,25 @@ game = EvoNet(grid_width =52,
               num_agents=2,
               view_port_dimensions=agent_view_port)
 
-env = PLE(game, display_screen=True,
-                fps=100,
-                force_fps=False, 
-                num_steps=1, 
-                frame_skip=1, 
-                add_noop_action=False)
-env.init()
+#nv = PLE(game, display_screen=True,
+ #              fps=100,
+  #             force_fps=False, 
+   #            num_steps=1, 
+    #           frame_skip=1, 
+     #          add_noop_action=False)
 
-actions = list(env.game.getActions())
+game._setup()
+game.init()
+
+actions = list(game.getActions())
 print("Actions: {}".format(actions))
 
 while True:
 
-    if env.game_over():
-        env.reset_game()
+    if game.game_over():
+        game.reset()
 
-    next_action = np.random.choice(actions)
-    reward = env.act(next_action)
+    dt = game.tick(100)
+    reward = game.step(dt)
 
    #print(env.getFrameNumber())
