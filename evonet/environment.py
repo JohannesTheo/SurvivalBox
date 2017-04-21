@@ -147,7 +147,7 @@ class Tile(pygame.sprite.DirtySprite):
         self.rect.x = self.Pos_x * self.TileSize + self.Offset
         self.rect.y = self.Pos_y * self.TileSize + self.Offset
 
-    def update(self,env, dt):
+    def update(self,env):
 
         #print(self.TileType)
         # update is equivalent to act
@@ -261,14 +261,15 @@ class EvoWorld():
         self.NumAgents = num_agents
 
         if not view_port_dimensions:
-            self.ViewPort = ViewPort()
-        else:
-            self.ViewPort = ViewPort(
-                            view_port_dimensions["grid_points_left" ],
-                            view_port_dimensions["grid_points_right"],
-                            view_port_dimensions["grid_points_front"],
-                            view_port_dimensions["grid_points_back" ])
+            raise Exception("Please provide a ViewPort dict in the form: {'grid_points_left':a, 'grid_points_right:b', 'grid_points_front':c, 'grid_points_back':d}")
+        
+        self.ViewPort = ViewPort(
+                        view_port_dimensions["grid_points_left" ],
+                        view_port_dimensions["grid_points_right"],
+                        view_port_dimensions["grid_points_front"],
+                        view_port_dimensions["grid_points_back" ])
 
+        # Calculate the max amount of extra border for clipping our agent Views later
         ViewPort_Grid = self.ViewPort.get_grid_size()
         self.MAX_VIEW_PORT = np.max(ViewPort_Grid)
         self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
@@ -277,7 +278,7 @@ class EvoWorld():
                                           self.MAPHEIGHT * self.TileSize  + 2 * self.ClippingBorder))
 
         # If no map exists generate one
-        if(self.TileMap is None):
+        if(self.START_MAP is None):
             self.TileMap, self.START_MAP = generate_tile_map(self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
             
         # reuse the reset method to init groups and scale Sprites
@@ -413,7 +414,7 @@ class EvoWorld():
 
             self.survivor_group.draw(self.MapSurface)
             for ally in self.survivor_group.sprites():
-                if ally.ID != ID:
+                if ally.ID != agent.ID:
                     ally.draw_as_ally(self.MapSurface)
 
             # Get the clipped View of the Agent
@@ -429,8 +430,8 @@ class EvoWorld():
     def get_agent_views(self):
         views = []
         for agent in self.AgentList:
-            ID   = self.AgentList[agent]["ID"]
-            VIEW = self.AgentList[ID]["AgentView"]
+            #   = self.AgentList[agent]["ID"]
+            VIEW = self.AgentList[agent]["AgentView"]
             views.append( pygame.surfarray.array3d(VIEW).astype(np.uint8))
         return views
         
@@ -445,13 +446,14 @@ class EvoWorld():
     def set_active_agent(self, agent):
         self.ActivePlayer = agent
 
-    def update(self, screen, dt, action_list=[]):
+    def update(self, screen, action_list):
 
-        # Update the Agents
-        self.survivor_group.update( dt, action_list)
-
+        # update the agents by index
+        self.survivor_group.update(action_list)
+            
         if self.game_over(): return
 
+        
         # Collision can be simplified a lot by using grid positions directly instead of rects.
         
         # Apply Game Logic
@@ -463,7 +465,7 @@ class EvoWorld():
         CollideFood = pygame.sprite.groupcollide(self.land_group, self.survivor_group, False, False)
         #print(CollideFood)
         for LandTile in CollideFood:
-            LandTile.update(self, dt)
+            LandTile.update(self)
 
         for agent in self.survivor_group.sprites():
             agent.CostMultiplier = Survivor.COST_MULT_LAND
