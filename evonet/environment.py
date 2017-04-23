@@ -51,7 +51,7 @@ class EvoWorld():
         self.NumAgents = 0
         self.AgentList = {}
         self.CardList  = {}
-        self.CardBorder = 0
+        self.CARD_MARGIN = 30 
         self.rng = None
         self.ActivePlayer = 0
         
@@ -238,7 +238,6 @@ class EvoWorld():
 
     def create_cards(self):
         self.CardList  = {}
-        self.CardBorder = 30
         for agent in self.AgentList:
             ID = self.AgentList[agent]["ID"]
             self.CardList[ID] = Card(self.AgentList[agent],
@@ -257,7 +256,7 @@ class EvoWorld():
 
         for card in self.CardList:
             width += self.CardList[card].get_width()
-            width += self.CardBorder
+            width += self.CARD_MARGIN
             card_h = self.CardList[card].get_height()
             if card_h >= height:
                 height = card_h + 2 * self.ClippingBorder
@@ -265,6 +264,9 @@ class EvoWorld():
         return (width, height)
 
     def scale_to(self, tile_size):
+
+        # reset the game before resize to have an initial game state
+        self.reset()
 
         # Set the new TileSize
         self.TileSize = tile_size
@@ -394,67 +396,76 @@ class EvoWorld():
 
         # Redraw Agents for Map View 
         self.game_objects_group.draw(self.MapSurface)
-
-        # Draw the full MapSurface to our Main Game Screen
-        #screen.blit(self.MapSurface,( -self.ClippingBorder, -self.ClippingBorder))
-
+        # Draw the a human friendly version of the game
         if(self.TileSize < 8):
+            huge_w, huge_h, huge_offset = self.draw_huge_map(screen)
+            self.draw_normal_map(screen, huge_offset - self.ClippingBorder, huge_h)
+            self.draw_cards(screen, huge_w, huge_offset)
 
-                #self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
-
-            w = (self.MAPWIDTH  * 8) + (2 * (self.MAX_VIEW_PORT - 1) * 8)
-            h = (self.MAPHEIGHT * 8) + (2 * (self.MAX_VIEW_PORT - 1) * 8)
-            HugeMap = pygame.transform.scale(self.MapSurface, (w,h))
-            screen.blit(HugeMap,(0,0))
-            screen.blit(self.MapSurface, (((self.MAX_VIEW_PORT - 1) * 8)- self.ClippingBorder, h))
-            
-            # Draw a ViewPort representation
-            for agent in self.AgentList:
-
-                # Scaled
-                Offset = (self.MAX_VIEW_PORT - 1) * 8
-                Pos = self.AgentList[agent]["Agent"].Pos
-                VP_scaled = self.AgentList[agent]["Agent"].ViewPort.get_viewport(Pos, 8, Offset)
-                pygame.draw.rect(screen, (0,0,255), VP_scaled, 2)
-                marker_scaled = self.AgentList[agent]["Agent"].get_marker_rect(Pos, 8, Offset)
-                pygame.draw.rect(screen, (228,228,228), marker_scaled)
-
-                # Minimap
-                VP = self.AgentList[agent]["ViewPort"]
-                VP.y += h 
-                VP.x += ((self.MAX_VIEW_PORT - 1) * 8)- self.ClippingBorder
-                marker = self.AgentList[agent]["Agent"].get_marker()
-                marker.y += h
-                marker.x += ((self.MAX_VIEW_PORT - 1) * 8)- self.ClippingBorder
-                pygame.draw.rect(screen, (0,0,255), VP, 2)
-                pygame.draw.rect(screen, (228,228,228), marker)
-
-            # Draw per Agent Card Info
-            for card in self.CardList:
-                if card == self.ActivePlayer: 
-                    active = True
-                else:
-                    active = False
-
-                self.CardList[card].update(active)
-                #screen.blit(self.CardList[card],( self.MapSurface.get_width() - self.ClippingBorder + self.CardList[card].get_width() * card + card * self.CardBorder, 0))
-                screen.blit(self.CardList[card],( w + self.CardList[card].get_width() * card + card * self.CardBorder, (self.MAX_VIEW_PORT - 1) * 8))
         else:
-            screen.blit(self.MapSurface,( 0, 0))
-            # Draw a ViewPort representation
-            for agent in self.AgentList:
-                pygame.draw.rect(screen, (0,0,255), self.AgentList[agent]["ViewPort"], 2)
-                pygame.draw.rect(screen, (228,228,228), self.AgentList[agent]["Agent"].get_marker())
+            w,h,offset = self.draw_normal_map(screen, 0,0)
+            self.draw_cards(screen, w, offset)
 
-            # Draw per Agent Card Info
+
+    def draw_cards(self, screen, offset_x, offset_y):
+            margin = self.CARD_MARGIN # margin between Cards
+
             for card in self.CardList:
-                if card == self.ActivePlayer: 
-                    active = True
-                else:
-                    active = False
-
+                # limit the amount of cards:
+                if card > 11: break
+                # check if card is the active player
+                active = (card == self.ActivePlayer)
+                # update the card
                 self.CardList[card].update(active)
-                #screen.blit(self.CardList[card],( self.MapSurface.get_width() - self.ClippingBorder + self.CardList[card].get_width() * card + card * self.CardBorder, 0))
-                screen.blit(self.CardList[card],( self.MapSurface.get_width() + self.CardList[card].get_width() * card + card * self.CardBorder, self.ClippingBorder))
-                
-    
+                # calculate position
+                x = offset_x + (self.CardList[card].get_width() * (card%6)) + ((card%6) * margin)
+                y = offset_y
+
+                if card > 5:
+                    y += self.CardList[card].get_height() + 30
+                # draw the card
+                screen.blit(self.CardList[card], (x,y))
+
+    def draw_huge_map(self, screen):
+        
+        Offset = (self.MAX_VIEW_PORT - 1) * 8
+
+        w = (self.MAPWIDTH  * 8) + (2 * Offset)
+        h = (self.MAPHEIGHT * 8) + (2 * Offset)
+        HugeMap = pygame.transform.scale(self.MapSurface, (w,h))
+        screen.blit(HugeMap,(0,0))
+
+        # Draw a ViewPort representation
+        for agent in self.AgentList:
+
+            # Get the agents position
+            Pos = self.AgentList[agent]["Agent"].Pos
+            # Calculate ViewPort and Orientation Marker with new scale and offset
+            ViewPort_scaled = self.AgentList[agent]["Agent"].ViewPort.get_viewport(Pos, 8, Offset)
+            Marker_scaled = self.AgentList[agent]["Agent"].get_marker_rect(Pos, 8, Offset)
+            # Draw the scaled ViewPort and Marker
+            pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
+            pygame.draw.rect(screen, (228,228,228), Marker_scaled)
+
+        return (w, h, Offset)
+
+    def draw_normal_map(self, screen, x, y):
+
+        screen.blit(self.MapSurface, (x,y))
+
+        # Draw a ViewPort representation
+        for agent in self.AgentList:
+
+            # Get the agents ViewPort
+            ViewPort = self.AgentList[agent]["ViewPort"]
+            Marker = self.AgentList[agent]["Agent"].get_marker()
+            # Offset by x and y
+            ViewPort.y += y 
+            ViewPort.x += x
+            Marker.y += y
+            Marker.x += x
+            # Draw the real ViewPort and Marker
+            pygame.draw.rect(screen, (0,0,255), ViewPort, 2)
+            pygame.draw.rect(screen, (228,228,228), Marker)
+
+        return (self.MapSurface.get_width(), self.MapSurface.get_height(), self.ClippingBorder)
