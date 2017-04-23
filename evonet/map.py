@@ -40,15 +40,16 @@ def parse_height_map(width, height, water_percentage, height_map):
     Converts a value noise height map in a meaningful environment.
     This is the place to define or change the map characteristics.
     '''
-    RawMap  = np.zeros([height, width], dtype=int, order='F')
+    #print(height_map, height_map.shape)
+    RawMap  = np.zeros([width, height], dtype=int, order='F')
     statistics = {"water" : 0, "land"  : 0, "dirt"  : 0, "grass" : 0, "total" : 0, "check" : 0}
 
     #Convert HightMap into a TileMap
-    for row in range(height):
-        for column in range(width):
+    for row in range(width):
+        for column in range(height):
             
             # EOW - end of world border
-            if row == 0 or row == (height - 1) or column == 0 or column == (width -1):
+            if row == 0 or row == (width - 1) or column == 0 or column == (height -1):
             #if row < 22 or row > (height - 21) or column < 22 or column > (width -21):
                 RawMap[row,column] = EOW
                 continue
@@ -82,13 +83,13 @@ def convert_raw_map(width, height, raw_map, tile_size, clipping_border):
     '''
     Converts a the raw terrain information of the raw map into pygame sprite objects with appropriate scale and position
     '''
-    TileMap = np.zeros([height, width], dtype=object, order='F')
-    for column in range(width):
-        for row in range(height):
+    TileMap = np.zeros([width, height], dtype=object, order='F')
+    for row in range(width):
+        for column in range(height):
         
-            TileType = raw_map[column, row]
-            NewTile = Tile(column, row, TileType, tile_size, clipping_border)
-            TileMap[column, row] = NewTile
+            TileType = raw_map[row, column]
+            NewTile = Tile(row, column, TileType, tile_size, clipping_border)
+            TileMap[row, column] = NewTile
 
     return TileMap
 
@@ -98,8 +99,10 @@ def generate_tile_map(width, height, water_percentage, tile_size, clipping_borde
     #RawMap  = np.zeros([height, width], dtype=int, order='F')
     #TileMap = np.zeros([height, width], dtype=int, order='F')
 
-    START_MAP = {   "TileMap" : [],
-                    "RawMap"  : [],
+    START_MAP = {   "TileMap"   : [],
+                    "TileMap_TileSize" : tile_size,
+                    "HeigthMap" : [],
+                    "RawMap"    : [],
                     "Description" : resources,
                     "Stats"   : {
                                 "water" : 0,
@@ -129,11 +132,9 @@ def generate_tile_map(width, height, water_percentage, tile_size, clipping_borde
     TileMap = convert_raw_map(width, height, RawMap, tile_size, clipping_border)
 
     # make a copy of the final TileMap
-    START_MAP["RawMap"]  = np.copy(RawMap)
-    START_MAP["TileMap"] = np.copy(TileMap)
-
-  
-
+    START_MAP["HeightMap"] = np.copy(HeightMap)
+    START_MAP["RawMap"]    = np.copy(RawMap)
+    START_MAP["TileMap"]   = np.copy(TileMap)
 
     # print the StartMaps statistics
     print("Total: {total} (check {check}) \n Water: {water} \n Land: {land} (Dirt: {dirt}, Grass: {grass})".format(
@@ -144,7 +145,7 @@ def generate_tile_map(width, height, water_percentage, tile_size, clipping_borde
            dirt =Stats["dirt"],
            grass=Stats["grass"]))
 
-    return (RawMap, START_MAP)
+    return (TileMap, START_MAP)
 
 
 class Tile(pygame.sprite.DirtySprite):
@@ -173,6 +174,11 @@ class Tile(pygame.sprite.DirtySprite):
         else:
             self.isFeartile = False
             self.FoodValue  = 0
+
+        # save original values for reset
+        self._O_TILE_TYPE  = self.TileType
+        self._O_FOOD_VALUE = self.FoodValue
+        self._O_FEARTILE   = self.isFeartile
 
         # The initial Tile texture
         self.image = pygame.transform.scale(textures[self.TileType].convert(), (self.TileSize, self.TileSize))
@@ -203,3 +209,13 @@ class Tile(pygame.sprite.DirtySprite):
         self.rect.x = self.Pos_x * self.TileSize + self.Offset
         self.rect.y = self.Pos_y * self.TileSize + self.Offset
         #print(self.rect)
+
+    def get_grid_pos(self):
+        return (self.Pos_x, self.Pos_y)
+
+    def reset(self):
+
+        self.TileType   = self._O_TILE_TYPE
+        self.FoodVlaue  = self._O_FOOD_VALUE
+        self.isFeartile = self._O_FEARTILE
+        self.scale_to(self.TileSize, self.Offset)
