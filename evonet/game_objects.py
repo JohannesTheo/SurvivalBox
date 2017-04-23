@@ -101,19 +101,20 @@ class Survivor(pygame.sprite.DirtySprite):
     # for debugging
     ORIENTATION_STRING_MAP = {UP:'UP', RIGHT:'RIGHT', DOWN:'DOWN', LEFT:'LEFT'}
 
-    def __init__(self, ID, view_port, start_x=1, start_y=1, start_o=0, size=8, offset=0):
+    def __init__(self, ID, view_port, agent_start_pos=(1,1,0), size=8, offset=0):
         
         pygame.sprite.Sprite.__init__(self)
 
         self.ID = ID
         self.ACTIONS = Survivor.BASIC_ACTIONS
         
-        self.Pos = np.array([start_x, start_y, start_o])
+        self.Pos = np.array(agent_start_pos)
         self.OldPos = self.Pos.copy()
         self.ViewPort = view_port
 
         self.Energy = 300.
-        self.CostMultiplier = Survivor.COST_MULT_LAND
+        self._O_ENERGY = self.Energy
+        self.CostMultiplier = 1
 
         self.TileSize = size
         self.Offset = offset
@@ -174,6 +175,9 @@ class Survivor(pygame.sprite.DirtySprite):
     def draw_as_ally(self, Surface):
         pygame.draw.rect(Surface, (0,0,255) ,self.rect)
 
+    def draw_as_self(self, Surface):
+        Surface.blit(self.image, self.rect)
+
     def update(self, action_list):
 
         action = action_list[self.ID]
@@ -184,7 +188,7 @@ class Survivor(pygame.sprite.DirtySprite):
         # If Survivor is dead return
         if self.Energy <= 0:
             self.kill()
-            return
+            return (self.Pos[0],self.Pos[1]) 
 
         # Save OldPos for resetting after collision
         self.OldPos = self.Pos.copy()
@@ -206,11 +210,21 @@ class Survivor(pygame.sprite.DirtySprite):
 
         self.update_render_pos()
 
+        return (self.Pos[0],self.Pos[1]) 
+
     def set_back(self):
-        self.Pos = self.OldPos
+        self.Pos = self.OldPos.copy()
         self.update_render_pos()
 
     def update_render_pos(self):
         # Set render position
         self.rect.x = self.Pos[0] * self. TileSize + self.Offset
         self.rect.y = self.Pos[1] * self. TileSize + self.Offset
+
+    def reset(self, new_pos):
+        self.Pos = np.array(new_pos)
+        self.OldPos = self.Pos
+        self.Energy = self._O_ENERGY
+        self.CostMultiplier = 1
+        self.update_render_pos()
+
