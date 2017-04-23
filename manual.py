@@ -1,5 +1,7 @@
 import numpy as np
-from evonet import EvoNet
+from evonet import EvoNet 
+import pygame
+import matplotlib.pyplot as plt
 
 agent_view_port = {
                     "grid_points_left" : 9,
@@ -12,7 +14,7 @@ game = EvoNet(grid_width =52,
               grid_height=52,
               tile_size=4, 
               water_percentage=0.5, 
-              num_agents=2,
+              num_agents=1,
               view_port_dimensions=agent_view_port)
 
 #nv = PLE(game, display_screen=True,
@@ -23,17 +25,20 @@ game = EvoNet(grid_width =52,
      #          add_noop_action=False)
 
 game._setup()
-game.init()
-
 actions = list(game.getActions())
 print("Actions: {}".format(actions))
 
-while True:
+game.init()
 
+#game.save_map("test.map")
+#game.load_map("test.map")
+
+while True:
     if game.game_over():
         game.reset()
 
-    dt = game.tick(100)
+    dt = game.tick(1000)
     reward = game.step(dt)
-
-   #print(env.getFrameNumber())
+    observation = game.getScreenRGB()[0]
+   
+    #print(env.getFrameNumber())
