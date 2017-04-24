@@ -9,7 +9,7 @@ import pickle
 
 # local imports
 from . import map
-from .game_objects import Survivor, ViewPort
+from .game_objects import Survivor, ViewPort, Fireplace, Sheep, Wolf
 from .card import Card
 
 class EvoWorld():
@@ -137,6 +137,19 @@ class EvoWorld():
         # Create our Agents
         self.create_agents(self.NumAgents)
 
+        # Create other game Objects
+        fp = Fireplace(self.random_position(), self.TileSize, self.ClippingBorder)
+        self.everything_group.add(fp)
+        self.game_objects_group.add(fp)
+
+        sheep = Sheep(self.random_position(), self.TileSize, self.ClippingBorder)
+        self.everything_group.add(sheep)
+        self.game_objects_group.add(sheep)
+
+        wolf = Wolf(self.random_position(), self.TileSize, self.ClippingBorder)
+        self.everything_group.add(wolf)
+        self.game_objects_group.add(wolf)
+
         # Reset the GameState
         self.reset()
 
@@ -153,7 +166,7 @@ class EvoWorld():
             self.AgentList[ID] = { "ID" : ID, "Agent" : NewAgent, "ViewPort_Grid" : NewAgent.ViewPort.get_grid_dimensions(), "ViewPort" : None, "AgentView" : None}
             # add to groups
             self.everything_group.add(NewAgent)
-            self.game_objects_group.add(NewAgent)
+            #self.game_objects_group.add(NewAgent)
             self.survivor_group.add(NewAgent)
 
     def create_new_map(self, loaded_map=None):
@@ -217,7 +230,7 @@ class EvoWorld():
             agent = self.AgentList[id]["Agent"]
             agent.reset(self.random_position())
             self.everything_group.add(agent)
-            self.game_objects_group.add(agent)
+            #self.game_objects_group.add(agent)
             self.survivor_group.add(agent)
 
         # make sure there is an initial view
@@ -347,7 +360,7 @@ class EvoWorld():
 
             colliding_map_tile = self.TileMap[new_pos]
             
-            if colliding_map_tile.TileType == map.EOW:
+            if colliding_map_tile.TileType == map.EOW or colliding_map_tile.TileType == map.FENCE:
                 agent.set_back()
                 continue
 
@@ -374,6 +387,8 @@ class EvoWorld():
 
             print("Agent @{}: {} - {} - {} <'TileMap, S_RawMap, S_TileMap'>".format(a_pos, tm_type, raw_type, tm_start_type))
             '''
+
+        self.game_objects_group.update()
             
 
         ###############################################################################
@@ -395,6 +410,7 @@ class EvoWorld():
         ###############################################################################
 
         # Redraw Agents for Map View 
+        self.survivor_group.draw(self.MapSurface)
         self.game_objects_group.draw(self.MapSurface)
         # Draw the a human friendly version of the game
         if(self.TileSize < 8):
