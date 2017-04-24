@@ -1,6 +1,7 @@
 __author__ = 'Johannes Theodoridis'
 
 # standard imports
+import os
 
 # third party imports
 import numpy as np
@@ -168,7 +169,6 @@ class Survivor(pygame.sprite.DirtySprite):
 
         return marker
 
-
     def get_grid_pos(self):
         return (self.Pos[0], self.Pos[1])
 
@@ -228,3 +228,139 @@ class Survivor(pygame.sprite.DirtySprite):
         self.CostMultiplier = 1
         self.update_render_pos()
 
+
+class Fireplace(pygame.sprite.DirtySprite):
+
+    def __init__(self, pos, size=8, offset=0, small=False):
+        _DIR = os.path.dirname(os.path.abspath(__file__))
+        
+        pygame.sprite.Sprite.__init__(self)
+
+        if small:
+            self.IMAGE_ON  = pygame.image.load(os.path.join(_DIR,'assets/fire_on_small.png' )).convert()
+            self.IMAGE_OFF = pygame.image.load(os.path.join(_DIR,'assets/fire_off_small.png')).convert()
+
+            self.NUM_TILES = 3
+        else:
+            self.IMAGE_ON  = pygame.image.load(os.path.join(_DIR,'assets/fire_on.png' )).convert()
+            self.IMAGE_OFF = pygame.image.load(os.path.join(_DIR,'assets/fire_off.png')).convert()          
+            self.NUM_TILES = 4
+
+        self.ON = True
+        self.test = 0
+        self.Pos = np.array(pos)
+        self.TileSize = size
+        self.Offset = offset
+
+        self.image_on  = pygame.transform.scale(self.IMAGE_ON,  (self.TileSize * self.NUM_TILES, self.TileSize * self.NUM_TILES))
+        self.image_off = pygame.transform.scale(self.IMAGE_OFF, (self.TileSize * self.NUM_TILES, self.TileSize * self.NUM_TILES))
+        self.image = self.image_off
+
+        #self.image.fill((255,0,0))
+        self.rect = self.image.get_rect()
+        self.update_render_pos()
+
+    def update(self):
+
+        self.test += 1
+        if self.test > 50:
+            self.image = self.image_on
+        if self.test > 150:
+            self.image = self.image_off
+        #self.Pos += Survivor.MOVE_FORWARD[0]
+        #self.update_render_pos()
+
+    def update_render_pos(self):
+        # Set render position
+        self.rect.x = self.Pos[0] * self. TileSize + self.Offset
+        self.rect.y = self.Pos[1] * self. TileSize + self.Offset
+
+    def scale_to(self, tile_size, offset):
+
+        self.TileSize = tile_size
+        self.Offset = offset
+        self.image_on  = pygame.transform.scale(self.IMAGE_ON,  (self.TileSize * self.NUM_TILES, self.TileSize * self.NUM_TILES))
+        self.image_off = pygame.transform.scale(self.IMAGE_OFF, (self.TileSize * self.NUM_TILES, self.TileSize * self.NUM_TILES))       
+        self.image = self.image_off
+        self.rect = self.image.get_rect()
+        self.update_render_pos()
+      
+class Sheep(pygame.sprite.DirtySprite):
+
+    def __init__(self, start_pos, size=8, offset=0 ):
+        _DIR = os.path.dirname(os.path.abspath(__file__))
+        
+        pygame.sprite.Sprite.__init__(self)
+
+        self.IMAGE = pygame.image.load(os.path.join(_DIR,'assets/sheep.png')).convert()
+        
+        self.Tile_w = 1
+        self.Tile_h = 2
+
+        self.Pos = np.array(start_pos)
+        self.TileSize = size
+        self.Offset = offset
+
+        self.image = pygame.transform.scale(self.IMAGE, (self.TileSize * self.Tile_w, self.TileSize * self.Tile_h))
+        #self.image.fill((255,0,0))
+        self.rect = self.image.get_rect()
+        self.update_render_pos()
+
+    def update(self):
+
+        if (np.random.random() < 0.5): print("TURN")
+        self.Pos += Survivor.MOVE_FORWARD[0]
+        self.update_render_pos()
+
+    def update_render_pos(self):
+        # Set render position
+        self.rect.x = self.Pos[0] * self. TileSize + self.Offset
+        self.rect.y = self.Pos[1] * self. TileSize + self.Offset
+
+    def scale_to(self, tile_size, offset):
+
+        self.TileSize = tile_size
+        self.Offset = offset
+        self.image = pygame.transform.scale(self.IMAGE, (self.TileSize * self.Tile_w, self.TileSize * self.Tile_h))
+        self.rect = self.image.get_rect()
+        self.update_render_pos()
+
+class Wolf(pygame.sprite.DirtySprite):
+
+    def __init__(self, start_pos, size=8, offset=0 ):
+        _DIR = os.path.dirname(os.path.abspath(__file__))
+        
+        pygame.sprite.Sprite.__init__(self)
+
+        self.IMAGE = pygame.image.load(os.path.join(_DIR,'assets/wolf.png')).convert()
+        
+        self.Tile_w = 1
+        self.Tile_h = 2
+
+        self.Pos = np.array(start_pos)
+        self.TileSize = size
+        self.Offset = offset
+
+        self.image = pygame.transform.scale(self.IMAGE, (self.TileSize * self.Tile_w, self.TileSize * self.Tile_h))
+        #self.image.fill((255,0,0))
+        self.rect = self.image.get_rect()
+        self.update_render_pos()
+
+    def update(self):
+
+        if (np.random.random() < 0.2): print("TURN")
+        self.Pos += Survivor.MOVE_FORWARD[0]
+        self.update_render_pos()
+
+    def update_render_pos(self):
+        # Set render position
+        self.rect.x = self.Pos[0] * self. TileSize + self.Offset
+        self.rect.y = self.Pos[1] * self. TileSize + self.Offset
+
+    def scale_to(self, tile_size, offset):
+
+        self.TileSize = tile_size
+        self.Offset = offset
+        self.image = pygame.transform.scale(self.IMAGE, (self.TileSize * self.Tile_w, self.TileSize * self.Tile_h))
+        self.rect = self.image.get_rect()
+        self.update_render_pos()
