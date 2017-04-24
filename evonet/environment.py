@@ -360,7 +360,7 @@ class EvoWorld():
 
             colliding_map_tile = self.TileMap[new_pos]
             
-            if colliding_map_tile.TileType == map.EOW or colliding_map_tile.TileType == map.FENCE:
+            if colliding_map_tile.TileType == map.EOW:
                 agent.set_back()
                 continue
 
