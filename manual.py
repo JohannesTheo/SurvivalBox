@@ -33,12 +33,18 @@ game.init()
 #game.save_map("test.map")
 #game.load_map("test.map")
 
+previous_score = 0
+
 while True:
     if game.game_over():
         game.reset()
 
-    dt = game.tick(1000)
-    reward = game.step(dt)
+    dt = game.tick(30)
+    game.step(dt)
+
+    reward = game.getScore() - previous_score
+    previous_score = game.getScore()
     observation = game.getScreenRGB()[0]
    
+    print(reward)
     #print(env.getFrameNumber())
