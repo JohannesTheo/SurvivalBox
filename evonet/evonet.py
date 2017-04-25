@@ -36,8 +36,8 @@ class EvoNet(PyGameWrapper):
                   "down":       K_DOWN,
                   "left":       K_LEFT,
                   "right":      K_RIGHT,
-                  #"turn_left":  K_COMMA,
-                  #"turn_right": K_PERIOD,
+                  "turn_left":  K_COMMA,
+                  "turn_right": K_PERIOD,
                   "NOOP"      : K_F15,
                  }
 
