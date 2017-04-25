@@ -356,13 +356,16 @@ class EvoWorld():
         self.dirty_sprites_group.empty()
 
         # update only living agents
-        for agent in self.survivor_group.sprites():
+        living_agents = self.survivor_group.sprites()
+        game_objects  = self.game_objects_group.sprites()
 
-            dirty_sprites = agent.update(action_list, self.TileMap, self.rewards)
+        for agent in living_agents:
+
+            dirty_sprites = agent.update(action_list, self.TileMap, self.rewards, game_objects)
             self.dirty_sprites_group.add(dirty_sprites)
 
         # update all game objects
-        for game_object in self.game_objects_group.sprites():
+        for game_object in game_objects:
             
             dirty_sprites = game_object.update(action_list, self.TileMap)
             self.dirty_sprites_group.add(dirty_sprites)
@@ -429,14 +432,23 @@ class EvoWorld():
         HugeMap = pygame.transform.scale(self.MapSurface, (w,h))
         screen.blit(HugeMap,(0,0))
 
-        # Draw a ViewPort representation
-        for agent in self.AgentList:
-
-            # Get the agents position
-            Pos = self.AgentList[agent]["Agent"].Pos
+        for game_object in self.game_objects_group.sprites():
+            # if isinstance(game_object, Sheep):
+            
             # Calculate ViewPort and Orientation Marker with new scale and offset
-            ViewPort_scaled = self.AgentList[agent]["Agent"].ViewPort.get_viewport(Pos, 8, Offset)
-            Marker_scaled   =  create_marker_rect(Pos, 8, Offset) #self.AgentList[agent]["Agent"].get_marker_rect(Pos, 8, Offset)
+            ViewPort_scaled = game_object.get_view_scaled(  8, Offset)
+            Marker_scaled   = game_object.get_marker_scaled(8, Offset) 
+            # Draw the scaled ViewPort and Marker
+            pygame.draw.rect(screen, (255,0,0), ViewPort_scaled, 2)
+            pygame.draw.rect(screen, (0,255,0), Marker_scaled)
+
+        # Draw a ViewPort representation
+        for id in self.AgentList:
+
+            agent = self.AgentList[id]["Agent"]
+            # Calculate ViewPort and Orientation Marker with new scale and offset
+            ViewPort_scaled = agent.get_view_scaled(  8, Offset)
+            Marker_scaled   = agent.get_marker_scaled(8, Offset) 
             # Draw the scaled ViewPort and Marker
             pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
             pygame.draw.rect(screen, (228,228,228), Marker_scaled)
@@ -447,17 +459,30 @@ class EvoWorld():
 
         screen.blit(self.MapSurface, (x,y))
 
-        # Draw a ViewPort representation
-        for agent in self.AgentList:
-
-            # Get the agents ViewPort
-            ViewPort = self.AgentList[agent]["ViewPort"]
-            Marker = self.AgentList[agent]["Agent"].get_marker()
+        for game_object in self.game_objects_group.sprites():
+            
+            ViewPort = game_object.get_view()
+            Marker   = game_object.get_marker()
             # Offset by x and y
-            ViewPort.y += y 
             ViewPort.x += x
-            Marker.y += y
+            ViewPort.y += y 
             Marker.x += x
+            Marker.y += y  
+            pygame.draw.rect(screen, (255,0,0), ViewPort, 2)
+            pygame.draw.rect(screen, (0,255,0), Marker)
+
+        # Draw a ViewPort representation
+        for id in self.AgentList:
+
+            agent = self.AgentList[id]["Agent"]
+            # Get the agents ViewPort
+            ViewPort = self.AgentList[id]["ViewPort"]
+            Marker   = agent.get_marker()
+            # Offset by x and y
+            ViewPort.x += x
+            ViewPort.y += y 
+            Marker.x += x
+            Marker.y += y
             # Draw the real ViewPort and Marker
             pygame.draw.rect(screen, (0,0,255), ViewPort, 2)
             pygame.draw.rect(screen, (228,228,228), Marker)
