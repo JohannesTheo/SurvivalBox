@@ -36,7 +36,7 @@ SHEEP          = pygame.image.load(os.path.join(_DIR,'assets/sheep.png')) #.conv
 WOLF           = pygame.image.load(os.path.join(_DIR,'assets/wolf.png')) #.convert()
 
 
-def create_marker_rect(Pos, TileSize, Offset):
+def create_marker_rect(Pos, TileSize, Offset, size_x=1, size_y=1):
         '''
         This method returns the grid point infront of the given position (depending on the orientation), as a scaled rectangle.
         The returned rectangle can be used to draw an orientation marker on the map for instance.
@@ -51,17 +51,17 @@ def create_marker_rect(Pos, TileSize, Offset):
         if   Pos[2] == UP:
             marker.y = (Pos[1] - 1) * TileSize + Offset
         elif Pos[2] == DOWN:
-            marker.y = (Pos[1] + 1) * TileSize + Offset
+            marker.y = (Pos[1] + size_y) * TileSize + Offset
         elif Pos[2] == LEFT:
             marker.x = (Pos[0] - 1) * TileSize + Offset
         elif Pos[2] == RIGHT:
-            marker.x = (Pos[0] + 1) * TileSize + Offset
+            marker.x = (Pos[0] + size_y) * TileSize + Offset
 
         return marker
 
 class GameObject():
 
-    def __init__(self, start_pos, tile_size, offset, grid_size, actions, base_image=None):
+    def __init__(self, start_pos, tile_size, offset, grid_size, actions, base_image=None, view_port=None):
 
         self.Pos     = np.array(start_pos)
         self.OldPos  = self.Pos.copy()
@@ -69,7 +69,7 @@ class GameObject():
         self.GRID_W = grid_size[0] # grid width  of the object in UP/DOWN position
         self.GRID_H = grid_size[1] # grid height of the object in UP/DOWN position
         
-        self.Grid    = self.get_collision_grid()
+        self.Grid    = self.update_collision_grid()
         self.OldGrid = self.Grid
         
         self.TileSize = tile_size
@@ -84,6 +84,10 @@ class GameObject():
             self.rect = self.image.get_rect()
             self.update_render_pos()
 
+        self.ViewPort = view_port
+        if view_port is None:
+            self.ViewPort = ViewPort(0,0,0,0)
+
     def get_grid_pos(self):
         return (self.Pos[0], self.Pos[1])
 
@@ -91,6 +95,24 @@ class GameObject():
         return (self.OldPos[0], self.OldPos[1])
 
     def get_collision_grid(self):
+        return self.Grid
+
+    def get_collision_grid_old(self):
+        return self.OldGrid
+
+    def get_view(self):
+        return self.ViewPort.get_viewport(self.Pos, self.TileSize, self.Offset, self.GRID_W, self.GRID_H)
+
+    def get_view_scaled(self, tile_size, offset):
+        return self.ViewPort.get_viewport(self.Pos, tile_size, offset, self.GRID_W, self.GRID_H)
+
+    def get_marker(self):
+        return create_marker_rect(self.Pos, self.TileSize, self.Offset, self.GRID_W, self.GRID_H)
+
+    def get_marker_scaled(self, tile_size, offset):
+        return create_marker_rect(self.Pos, tile_size, offset, self.GRID_W, self.GRID_H)
+
+    def update_collision_grid(self):
 
         collision_grid = []
 
@@ -112,7 +134,7 @@ class GameObject():
         orientation  = self.Pos[2]
         self.Pos    += self.ACTIONS[action][orientation]
         self.Pos[2] %= 4 # clip orientation to (0..3)
-        self.Grid    = self.get_collision_grid()
+        self.Grid    = self.update_collision_grid()
 
     def set_back(self):
         self.Pos  = self.OldPos.copy()
@@ -149,7 +171,7 @@ class GameObject():
     def reset(self, new_pos):
         self.Pos = np.array(new_pos)
         self.OldPos = self.Pos.copy()
-        self.Grid = self.get_collision_grid()
+        self.Grid = self.update_collision_grid()
         self.OldGrid = self.Grid
         self.update_render_pos(rotate=True)
     
@@ -181,7 +203,7 @@ class ViewPort(pygame.Rect):
     def get_grid_dimensions(self):
         return( self.grid_left + self.grid_right + 1 , self.grid_front + self.grid_back + 1)
 
-    def get_viewport(self, position, tile_size, offset):
+    def get_viewport(self, position, tile_size, offset, size_x=1, size_y=1):
         grid_pos_X  = position[0]
         grid_pos_Y  = position[1]
         orientation = position[2]
@@ -190,23 +212,23 @@ class ViewPort(pygame.Rect):
         if orientation == 0: # UP
             self.left   = (grid_pos_X - self.grid_left          ) * tile_size + offset
             self.top    = (grid_pos_Y - self.grid_front         ) * tile_size + offset
-            self.width  = (self.grid_left  + self.grid_right + 1) * tile_size
-            self.height = (self.grid_front + self.grid_back  + 1) * tile_size
+            self.width  = (self.grid_left  + self.grid_right + size_x) * tile_size
+            self.height = (self.grid_front + self.grid_back  + size_y) * tile_size
         elif orientation == 2: # DOWN
             self.left   = (grid_pos_X - self.grid_left          ) * tile_size + offset
             self.top    = (grid_pos_Y - self.grid_back          ) * tile_size + offset
-            self.width  = (self.grid_left  + self.grid_right + 1) * tile_size
-            self.height = (self.grid_front + self.grid_back  + 1) * tile_size
+            self.width  = (self.grid_left  + self.grid_right + size_x) * tile_size
+            self.height = (self.grid_front + self.grid_back  + size_y) * tile_size
         elif orientation == 1: # RIGHT
             self.left   = (grid_pos_X - self.grid_back          ) * tile_size + offset
             self.top    = (grid_pos_Y - self.grid_left          ) * tile_size + offset
-            self.width  = (self.grid_front + self.grid_back  + 1) * tile_size
-            self.height = (self.grid_left  + self.grid_right + 1) * tile_size
+            self.width  = (self.grid_front + self.grid_back  + size_y) * tile_size
+            self.height = (self.grid_left  + self.grid_right + size_x) * tile_size
         elif orientation == 3: # LEFT
             self.left   = (grid_pos_X - self.grid_front         ) * tile_size + offset
             self.top    = (grid_pos_Y - self.grid_right         ) * tile_size + offset
-            self.width  = (self.grid_front + self.grid_back  + 1) * tile_size
-            self.height = (self.grid_left  + self.grid_right + 1) * tile_size
+            self.width  = (self.grid_front + self.grid_back  + size_y) * tile_size
+            self.height = (self.grid_left  + self.grid_right + size_x) * tile_size
 
         return self
 
@@ -250,19 +272,13 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         # reward
         self.Score = 0
 
-    def get_view(self):
-        return self.ViewPort.get_viewport(self.Pos, self.TileSize, self.Offset)
-
-    def get_marker(self):
-        return create_marker_rect(self.Pos, self.TileSize, self.Offset)
-
     def draw_as_ally(self, Surface):
         pygame.draw.rect(Surface, (0,0,255) ,self.rect)
 
     def draw_as_self(self, Surface):
         Surface.blit(self.image, self.rect)
 
-    def update(self, action_list, tile_map, rewards):
+    def update(self, action_list, tile_map, rewards, game_objects):
 
         # apply the basic cost
         self.Energy -= 1 * self.CostMultiplier
@@ -283,6 +299,11 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
             if colliding_map_tile.TileType == map.EOW:
                 self.set_back()
                 break
+
+            for game_object in game_objects:
+                if point in game_object.get_collision_grid():
+                    self.set_back()
+                    break
 
             if colliding_map_tile.TileType == map.WATER:
                 self.CostMultiplier = Survivor.COST_MULT_WATER
@@ -369,6 +390,12 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
         
         pygame.sprite.Sprite.__init__(self)
         GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert())
+        self.ViewPort = ViewPort(5,5,5,4)
+
+       #UP    = ViewPort(5,6,5,5)
+       # DOWN  = ViewPort(6,5,5,5)
+       # LEFT  = ViewPort(5,5,5,6)
+       # RIGHT = ViewPort(5,5,6,5)
 
     def update(self, actions, tile_map):
 
@@ -416,7 +443,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
     def update(self, actions, tile_map):
 
         action = actions[0]
-        self.move(action)
+        #self.move(action)
 
         for point in self.Grid:
             colliding_map_tile = tile_map[point]
