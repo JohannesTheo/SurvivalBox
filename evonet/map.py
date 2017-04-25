@@ -188,14 +188,15 @@ class Tile(pygame.sprite.DirtySprite):
         self.rect.x = self.Pos_x * self.TileSize + self.Offset
         self.rect.y = self.Pos_y * self.TileSize + self.Offset
 
-    def update(self,env):
+    def update(self, agent=None, rewards=None):
 
         #print(self.TileType)
         # update is equivalent to act
         self.FoodValue -= 100
 
         if self.FoodValue <= 0 and self.TileType == GRASS:
-            env.score += env.rewards["positive"]
+            if agent is not None and rewards is not None:
+                agent.Score += rewards["positive"]
             self.FoodValue = 0
             self.TileType = MUD
             self.scale_to(self.TileSize, self.Offset)
