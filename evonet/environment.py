@@ -9,7 +9,7 @@ import pickle
 
 # local imports
 from . import map
-from .game_objects import Survivor, ViewPort, Fireplace, Sheep, Wolf
+from .game_objects import Survivor, ViewPort, Fireplace, Sheep, Wolf, create_marker_rect
 from .card import Card
 
 class EvoWorld():
@@ -233,6 +233,9 @@ class EvoWorld():
             #self.game_objects_group.add(agent)
             self.survivor_group.add(agent)
 
+        for game_object in self.game_objects_group.sprites():
+            game_object.reset(self.random_position())
+
         # make sure there is an initial view
         self.everything_group.draw(self.MapSurface)
         self.update_agent_views()
@@ -355,42 +358,16 @@ class EvoWorld():
         # update only living agents
         for agent in self.survivor_group.sprites():
 
-            old_pos = agent.get_grid_pos()
-            new_pos = agent.update(action_list)
+            dirty_sprites = agent.update(action_list, self.TileMap, self.rewards)
+            self.dirty_sprites_group.add(dirty_sprites)
 
-            colliding_map_tile = self.TileMap[new_pos]
+        # update all game objects
+        for game_object in self.game_objects_group.sprites():
             
-            if colliding_map_tile.TileType == map.EOW:
-                agent.set_back()
-                continue
+            dirty_sprites = game_object.update(action_list, self.TileMap)
+            self.dirty_sprites_group.add(dirty_sprites)
 
-            if colliding_map_tile.TileType == map.WATER:
-                agent.CostMultiplier = Survivor.COST_MULT_WATER
-            else:
-                agent.CostMultiplier = Survivor.COST_MULT_LAND
-
-            # update the Tile on the new pos
-            self.TileMap[new_pos].update(self)
-
-            # add the old position to render list
-            dirty_tile = self.TileMap[old_pos]
-            self.dirty_sprites_group.add(dirty_tile)
-        
-            '''
-            tm_type = colliding_map_tile.TileType
-            raw_type = self.START_MAP["RawMap"][new_pos]
-            tm_start_type = self.START_MAP["TileMap"][new_pos].TileType
-
-            tm_type = map.resources[tm_type]
-            raw_type = map.resources[raw_type]
-            tm_start_type = map.resources[tm_start_type]
-
-            print("Agent @{}: {} - {} - {} <'TileMap, S_RawMap, S_TileMap'>".format(a_pos, tm_type, raw_type, tm_start_type))
-            '''
-
-        self.game_objects_group.update()
-            
-
+        #self.game_objects_group.update()
         ###############################################################################
         # DRAW the important Stuff to generat the AgentViews: Needed always! training
         ###############################################################################     
@@ -401,6 +378,7 @@ class EvoWorld():
         self.dirty_sprites_group.draw(self.MapSurface)
 
         # Draw Enemies etc.
+        self.game_objects_group.draw(self.MapSurface)
 
         # Update the Agent Views
         self.update_agent_views()
@@ -411,8 +389,8 @@ class EvoWorld():
 
         # Redraw Agents for Map View 
         self.survivor_group.draw(self.MapSurface)
-        self.game_objects_group.draw(self.MapSurface)
-        # Draw the a human friendly version of the game
+
+        # Draw the a 'human friendly' version of the game
         if(self.TileSize < 8):
             huge_w, huge_h, huge_offset = self.draw_huge_map(screen)
             self.draw_normal_map(screen, huge_offset - self.ClippingBorder, huge_h)
@@ -458,7 +436,7 @@ class EvoWorld():
             Pos = self.AgentList[agent]["Agent"].Pos
             # Calculate ViewPort and Orientation Marker with new scale and offset
             ViewPort_scaled = self.AgentList[agent]["Agent"].ViewPort.get_viewport(Pos, 8, Offset)
-            Marker_scaled = self.AgentList[agent]["Agent"].get_marker_rect(Pos, 8, Offset)
+            Marker_scaled   =  create_marker_rect(Pos, 8, Offset) #self.AgentList[agent]["Agent"].get_marker_rect(Pos, 8, Offset)
             # Draw the scaled ViewPort and Marker
             pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
             pygame.draw.rect(screen, (228,228,228), Marker_scaled)
