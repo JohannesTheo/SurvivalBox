@@ -361,13 +361,16 @@ class EvoWorld():
 
         for agent in living_agents:
 
-            dirty_sprites = agent.update(action_list, self.TileMap, self.rewards, game_objects)
+            dirty_sprites = agent.update(action_list, self.TileMap, game_objects, living_agents)
             self.dirty_sprites_group.add(dirty_sprites)
 
         # update all game objects
+        living_agents = self.survivor_group.sprites()
+        game_objects  = self.game_objects_group.sprites()
+
         for game_object in game_objects:
             
-            dirty_sprites = game_object.update(action_list, self.TileMap)
+            dirty_sprites = game_object.update(action_list, self.TileMap, game_objects, living_agents)
             self.dirty_sprites_group.add(dirty_sprites)
 
         #self.game_objects_group.update()
