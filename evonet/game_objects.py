@@ -26,6 +26,24 @@ MOVE_LEFT     = {UP: [-1, 0, 0], DOWN: [ 1, 0, 0], LEFT: [ 0, 1, 0], RIGHT: [ 0,
 MOVE_RIGHT    = {UP: [ 1, 0, 0], DOWN: [-1, 0, 0], LEFT: [ 0,-1, 0], RIGHT: [ 0, 1, 0]}
 NOOP          = {UP: [ 0, 0, 0], DOWN: [ 0, 0, 0], LEFT: [ 0, 0, 0], RIGHT: [ 0, 0, 0]}
 
+# Define additional Survivor specific movement
+AGENT_TURN_LEFT     = {UP: [ 0, 0,-1], DOWN: [ 0, 0,-1], LEFT: [ 0, 0,-1], RIGHT: [ 0, 0,-1]}
+AGENT_TURN_RIGHT    = {UP: [ 0, 0, 1], DOWN: [ 0, 0, 1], LEFT: [ 0, 0, 1], RIGHT: [ 0, 0, 1]}
+
+# Define additional Animal specific movement
+#ANIMAL_TURN_LEFT     = {UP: [-1, 1,-1], DOWN: [ 0, 0,-1], LEFT: [ 1, 0,-1], RIGHT: [ 0,-1,-1]}
+#ANIMAL_TURN_RIGHT    = {UP: [ 0, 1, 1], DOWN: [-1, 0, 1], LEFT: [ 1,-1, 1], RIGHT: [ 0, 0, 1]}
+ANIMAL_TURN_LEFT     = {UP: [-1, 0,-1], DOWN: [ 0, 1,-1], LEFT: [ 0, 0,-1], RIGHT: [ 1,-1,-1]}
+ANIMAL_TURN_RIGHT    = {UP: [ 0, 0, 1], DOWN: [-1, 1, 1], LEFT: [ 0,-1, 1], RIGHT: [ 1, 0, 1]}
+ANIMAL_TURN_FULL     = {UP: [ 0, 0, 2], DOWN: [ 0, 0, 2], LEFT: [ 0, 0, 2], RIGHT: [ 0, 0, 2]}
+
+# Constants for NPCs move mappings // Human Player uses the pygame constants for mapping
+FORWARD = 0
+TURN_L  = 1
+TURN_R  = 2
+TURN_F  = 3
+STAY    = 4
+
 # Preload Images
 _DIR = os.path.dirname(os.path.abspath(__file__))
 FIRE_ON_SMALL  = pygame.image.load(os.path.join(_DIR,'assets/fire_on_small.png' )) #.convert()
@@ -106,6 +124,9 @@ class GameObject():
     def get_view_scaled(self, tile_size, offset):
         return self.ViewPort.get_viewport(self.Pos, tile_size, offset, self.GRID_W, self.GRID_H)
 
+    def get_view_grid(self):
+        return self.get_view_scaled(1, 0)
+
     def get_marker(self):
         return create_marker_rect(self.Pos, self.TileSize, self.Offset, self.GRID_W, self.GRID_H)
 
@@ -156,7 +177,7 @@ class GameObject():
                 if point not in self.Grid:
                     points.append(point)
                     dirty_sprites.append(tile_map[point])
-            print("OLD: {}, NEW: {} REDRAW: {}".format(self.OldGrid, self.Grid, points))
+            #print("OLD: {}, NEW: {} REDRAW: {}".format(self.OldGrid, self.Grid, points))
         
         return tuple(dirty_sprites)
 
@@ -233,24 +254,20 @@ class ViewPort(pygame.Rect):
         return self
 
 class Survivor(pygame.sprite.DirtySprite, GameObject):
-    # cost constants
+    # cost constants (game dynamics)
     COST_PERMANENT = 1.
     COST_MOVE = 5.
     COST_ROTATE = 5.
     COST_MULT_LAND = 1
     COST_MULT_WATER = 3
-
-    # Define additional Survivor specific movement
-    TURN_LEFT     = {UP: [ 0, 0,-1], DOWN: [ 0, 0,-1], LEFT: [ 0, 0,-1], RIGHT: [ 0, 0,-1]}
-    TURN_RIGHT    = {UP: [ 0, 0, 1], DOWN: [ 0, 0, 1], LEFT: [ 0, 0, 1], RIGHT: [ 0, 0, 1]}
     
-    # Player State is encoded as [PosX, PosY, Orientation]: PosXY TileMap Position, Orientation is: T0,R1,D2,L3
+    # Action Mapping for Survivor, defines possible actions!
     BASIC_ACTIONS = { K_UP    : MOVE_FORWARD,
                       K_DOWN  : MOVE_BACKWARD,
                       K_LEFT  : MOVE_LEFT,
                       K_RIGHT : MOVE_RIGHT,
-                      K_COMMA : TURN_LEFT, 
-                      K_PERIOD: TURN_RIGHT, 
+                      K_COMMA : AGENT_TURN_LEFT, 
+                      K_PERIOD: AGENT_TURN_RIGHT, 
                       K_F15   : NOOP
                     }
 
@@ -278,7 +295,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
     def draw_as_self(self, Surface):
         Surface.blit(self.image, self.rect)
 
-    def update(self, action_list, tile_map, rewards, game_objects):
+    def update(self, action_list, tile_map, game_objects, living_agents):
 
         # apply the basic cost
         self.Energy -= 1 * self.CostMultiplier
@@ -294,6 +311,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
 
         # Check collisions with map and other game_objects
         for point in self.Grid:
+
             colliding_map_tile = tile_map[point]
             
             if colliding_map_tile.TileType == map.EOW:
@@ -302,8 +320,20 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
 
             for game_object in game_objects:
                 if point in game_object.get_collision_grid():
-                    self.set_back()
-                    break
+
+                    if isinstance(game_object, Wolf):
+                        # reset the wolf and apply reward
+                        print("GOT THE WOLF!")
+                        break
+                    else:
+                        self.set_back()
+                        break
+                    
+            for agent in living_agents:
+                if self.ID != agent.ID:
+                    if point in agent.get_collision_grid():
+                        self.set_back()
+                        break
 
             if colliding_map_tile.TileType == map.WATER:
                 self.CostMultiplier = Survivor.COST_MULT_WATER
@@ -311,7 +341,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                 self.CostMultiplier = Survivor.COST_MULT_LAND
 
             # update the Map on the correct pos
-            colliding_map_tile.update(self, rewards)
+            colliding_map_tile.update(self)
 
         return self.update_render_pos(tile_map=tile_map)
 
@@ -336,7 +366,8 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
             IMAGE_OFF = FIRE_OFF.convert() 
             NUM_TILES = 4
 
-        GameObject.__init__(self, pos, tile_size, offset, (NUM_TILES, NUM_TILES), None, IMAGE_OFF)
+        FireArea = ViewPort(3,3,3,3)
+        GameObject.__init__(self, pos, tile_size, offset, (NUM_TILES, NUM_TILES), None, IMAGE_OFF, FireArea)
 
         # add a second Surface for the Fire ON image        
         self.BASE_IMAGE_2 = IMAGE_ON
@@ -345,15 +376,19 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
         self.ON = False
         self.test = 0
 
-    def update(self, actions, tile_map):
+    def update(self, actions, tile_map, game_objects, living_agents):
 
-        self.test += 1
-        if self.test > 50:
-            self.ON = True
+        self.ON = False
+        for agent in living_agents:
+            if self.get_view_grid().collidepoint(agent.get_grid_pos()):
+                print("FIRE!, Agent in reach: {}".format(agent.ID))
+                self.ON = True
+        
+        if self.ON:
             self.image = self.IMAGE_2 # Fire on
-        if self.test > 150:
-            self.ON = False
+        else:
             self.image = self.IMAGE   # Fire off
+        
         return []
 
     def scale_to(self, tile_size, offset):
@@ -367,39 +402,153 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
 
 class Sheep(pygame.sprite.DirtySprite, GameObject):
 
-    # Define additional Sheep specific movement
-    #TURN_LEFT     = {UP: [-1, 1,-1], DOWN: [ 0, 0,-1], LEFT: [ 1, 0,-1], RIGHT: [ 0,-1,-1]}
-    #TURN_RIGHT    = {UP: [ 0, 1, 1], DOWN: [-1, 0, 1], LEFT: [ 1,-1, 1], RIGHT: [ 0, 0, 1]}
-    TURN_LEFT     = {UP: [-1, 0,-1], DOWN: [ 0, 1,-1], LEFT: [ 0, 0,-1], RIGHT: [ 1,-1,-1]}
-    TURN_RIGHT    = {UP: [ 0, 0, 1], DOWN: [-1, 1, 1], LEFT: [ 0,-1, 1], RIGHT: [ 1, 0, 1]}
-
-    FORWARD = 0
-    TURN_L  = 1
-    TURN_R  = 2
-
-    BASIC_ACTIONS = { K_UP    : MOVE_FORWARD,
-                      K_DOWN  : MOVE_BACKWARD,
-                      K_LEFT  : MOVE_LEFT,
-                      K_RIGHT : MOVE_RIGHT,
-                      K_COMMA : TURN_LEFT, 
-                      K_PERIOD: TURN_RIGHT, 
-                      K_F15   : NOOP
+    # Action Mapping for Sheep, defines possible actions!
+    BASIC_ACTIONS = { FORWARD : MOVE_FORWARD,
+                      TURN_L  : ANIMAL_TURN_LEFT, 
+                      TURN_R  : ANIMAL_TURN_RIGHT,
+                      TURN_F  : ANIMAL_TURN_FULL,
+                      STAY    : NOOP
                     }
 
     def __init__(self, start_pos, tile_size=8, offset=0 ):
         
         pygame.sprite.Sprite.__init__(self)
-        GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert())
-        self.ViewPort = ViewPort(5,5,5,4)
 
-       #UP    = ViewPort(5,6,5,5)
-       # DOWN  = ViewPort(6,5,5,5)
-       # LEFT  = ViewPort(5,5,5,6)
-       # RIGHT = ViewPort(5,5,6,5)
+        SheepArea = ViewPort(5,5,5,4)
+        GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert(), SheepArea)
 
-    def update(self, actions, tile_map):
+        self.MOVE_EVERY_N_STEPS = 4
+        self.Steps = 0
 
-        action = actions[0]
+    def update(self, actions, tile_map, game_objects, living_agents):
+
+        # Select an action
+        self.Steps += 1
+        if (self.Steps % self.MOVE_EVERY_N_STEPS == 0):
+            action_prob = np.random.random()
+            if action_prob < 0.1:
+                action = TURN_L
+            elif action_prob < 0.2:
+                action = TURN_R
+            elif action_prob < 0.9:
+                action = FORWARD
+            else:
+                action = STAY
+
+            '''
+            # Select the same action as player x for manuel play/testing
+            self.ACTIONS = { K_UP    : MOVE_FORWARD,     K_DOWN  : MOVE_BACKWARD,    K_LEFT   : MOVE_LEFT, 
+                             K_RIGHT : MOVE_RIGHT,       K_COMMA : ANIMAL_TURN_LEFT, K_PERIOD : ANIMAL_TURN_RIGHT,
+                             FORWARD : MOVE_FORWARD,     TURN_L  : ANIMAL_TURN_LEFT, TURN_R   : ANIMAL_TURN_RIGHT,
+                             TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
+            action = actions[0]
+
+            # Select a fully random action
+            #action = self.move(self.select_random_move())
+            '''
+
+            # Apply the chosen action
+            self.move(action)
+    
+        for point in self.Grid:
+            colliding_map_tile = tile_map[point]
+            
+            if colliding_map_tile.TileType == map.EOW:
+                self.set_back()
+                break
+
+            if colliding_map_tile.TileType == map.WATER:
+                self.set_back()
+                self.move(TURN_F)
+                break
+
+            for game_object in game_objects:
+                if not isinstance(game_object, Sheep):
+                    if point in game_object.get_collision_grid():
+                        self.set_back()
+                        break
+
+            for agent in living_agents:
+                if self.get_view_grid().collidepoint(agent.get_grid_pos()):
+                    print("SHEPARD is agent: {}".format(agent.ID))
+
+                if point in agent.get_collision_grid():
+                    self.set_back()
+                    break
+
+            # update the Map on the correct pos
+            colliding_map_tile.update()
+        
+        return self.update_render_pos(rotate=True, tile_map=tile_map)
+
+    def select_random_move(self, with_stay=True):
+        if with_stay:
+            return np.random.choice([FORWARD, TURN_R, TURN_L, STAY])
+        else:
+            return np.random.choice([FORWARD, TURN_R, TURN_L])
+
+class Wolf(pygame.sprite.DirtySprite, GameObject):
+
+    # Action Mapping for Wolf, defines possible actions!
+    BASIC_ACTIONS = { FORWARD : MOVE_FORWARD,
+                      TURN_L  : ANIMAL_TURN_LEFT, 
+                      TURN_R  : ANIMAL_TURN_RIGHT,
+                      TURN_F  : ANIMAL_TURN_FULL,
+                      STAY    : NOOP
+                    }
+
+    def __init__(self, start_pos, tile_size=8, offset=0 ):
+        
+        pygame.sprite.Sprite.__init__(self)
+
+        WolfArea = ViewPort(8,8,8,8)
+        GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea)
+
+    def update(self, actions, tile_map, game_objects, living_agents):
+
+        HUNTING = False
+        SHEEP_POS = None
+
+        for game_object in game_objects:
+            if isinstance(game_object, Sheep):
+                area = self.get_view_grid()
+                sheep = game_object.get_collision_grid()
+
+                for point in sheep:
+                    if area.collidepoint(point):
+                        HUNTING = True
+                        SHEEP_POS = game_object.get_grid_pos()
+                        print("SHEEEEEP spottet")
+                        break
+
+        # Select an action
+        if HUNTING:
+            WOLF_POS = self.get_grid_pos()
+            action = self.select_hunt_move(hunter_pos=WOLF_POS, victim_pos=SHEEP_POS)
+        else:
+            action_prob = np.random.random()
+            if action_prob < 0.1:
+                action = TURN_L
+            elif action_prob < 0.2:
+                action = TURN_R
+            elif action_prob < 0.9:
+                action = FORWARD
+            else:
+                action = STAY
+        
+        '''
+        # Select the same action as player x for manuel play/testing
+        self.ACTIONS = { K_UP    : MOVE_FORWARD,     K_DOWN  : MOVE_BACKWARD,    K_LEFT   : MOVE_LEFT, 
+                         K_RIGHT : MOVE_RIGHT,       K_COMMA : ANIMAL_TURN_LEFT, K_PERIOD : ANIMAL_TURN_RIGHT,
+                         FORWARD : MOVE_FORWARD,     TURN_L  : ANIMAL_TURN_LEFT, TURN_R   : ANIMAL_TURN_RIGHT,
+                         TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
+        action = actions[1]
+
+        # Select a fully random action
+        #action = self.move(self.select_random_move())
+        '''
+
+        # apply the chosen action
         self.move(action)
 
         for point in self.Grid:
@@ -409,50 +558,75 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                 self.set_back()
                 break
 
-            # update the Map on the correct pos
-            colliding_map_tile.update()
-        
-        return self.update_render_pos(rotate=True, tile_map=tile_map)
-
-class Wolf(pygame.sprite.DirtySprite, GameObject):
-
-    # Define additional Wolf specific movement
-    #TURN_LEFT     = {UP: [-1, 1,-1], DOWN: [ 0, 0,-1], LEFT: [ 1, 0,-1], RIGHT: [ 0,-1,-1]}
-    #TURN_RIGHT    = {UP: [ 0, 1, 1], DOWN: [-1, 0, 1], LEFT: [ 1,-1, 1], RIGHT: [ 0, 0, 1]}
-    TURN_LEFT     = {UP: [-1, 0,-1], DOWN: [ 0, 1,-1], LEFT: [ 0, 0,-1], RIGHT: [ 1,-1,-1]}
-    TURN_RIGHT    = {UP: [ 0, 0, 1], DOWN: [-1, 1, 1], LEFT: [ 0,-1, 1], RIGHT: [ 1, 0, 1]}
-
-    FORWARD = 0
-    TURN_L  = 1
-    TURN_R  = 2
-
-    BASIC_ACTIONS = { K_UP    : MOVE_FORWARD,
-                      K_DOWN  : MOVE_BACKWARD,
-                      K_LEFT  : MOVE_LEFT,
-                      K_RIGHT : MOVE_RIGHT,
-                      K_COMMA : TURN_LEFT, 
-                      K_PERIOD: TURN_RIGHT, 
-                      K_F15   : NOOP
-                    }
-
-    def __init__(self, start_pos, tile_size=8, offset=0 ):
-        
-        pygame.sprite.Sprite.__init__(self)
-        GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert())
-
-    def update(self, actions, tile_map):
-
-        action = actions[0]
-        #self.move(action)
-
-        for point in self.Grid:
-            colliding_map_tile = tile_map[point]
-            
-            if colliding_map_tile.TileType == map.EOW:
+            if colliding_map_tile.TileType == map.WATER:
                 self.set_back()
-                break
+                self.move(TURN_F)
 
-            # update the Map on the correct pos
-            colliding_map_tile.update()
-        
+                if HUNTING:
+                    # attemp another move to better escape from "trapped" situatios 
+                    self.move(self.select_random_move(False))
+                    for point_2 in self.Grid:
+                        colliding_map_tile = tile_map[point_2]
+                        if colliding_map_tile.TileType == map.WATER or colliding_map_tile.TileType == map.EOW:
+                            self.set_back()
+                            break
+
+            for game_object in game_objects:
+                if point in game_object.get_collision_grid():
+                    if isinstance(game_object, Sheep):
+                        # reset the wolf and apply reward
+                        print("WOLF KILLS THE SHEEP!")
+                        break
+                    elif isinstance(game_object, Fireplace):
+                        self.set_back()
+                        break
+
+            for agent in living_agents:
+                if point in agent.get_collision_grid():
+                    print("WOLF ATTACKS PLAYER {}!".format(agent.ID))
+                    self.set_back()
+                    break
+
         return self.update_render_pos(rotate=True, tile_map=tile_map)
+
+    def select_random_move(self, with_stay=True):
+        if with_stay:
+            return np.random.choice([FORWARD, TURN_R, TURN_L, STAY])
+        else:
+            return np.random.choice([FORWARD, TURN_R, TURN_L])
+
+    def select_hunt_move(self, hunter_pos, victim_pos):
+
+        diff_x = hunter_pos[0] - victim_pos[0]
+        diff_y = hunter_pos[1] - victim_pos[1]
+
+        reduce = diff_x if abs(diff_x) >= abs(diff_y) else diff_y
+        print("Wolf: {}, Sheep: {}, Diff: ({},{}, Reduce {})".format(hunter_pos, victim_pos, diff_x, diff_y, reduce))
+
+        if reduce == diff_x:
+            # again not smart but clear
+            if diff_x > 0:
+                if self.Pos[2]   == UP:    return TURN_L                    
+                elif self.Pos[2] == DOWN:  return TURN_R                  
+                elif self.Pos[2] == RIGHT: return TURN_F                    
+                elif self.Pos[2] == LEFT:  return FORWARD
+                else: return Wolf.STAY
+            else:
+                if self.Pos[2]   == UP:    return TURN_R                   
+                elif self.Pos[2] == DOWN:  return TURN_L                  
+                elif self.Pos[2] == RIGHT: return FORWARD                    
+                elif self.Pos[2] == LEFT:  return TURN_F
+                else: return Wolf.STAY
+        else:
+            if diff_y > 0:
+                if self.Pos[2]   == UP:    return FORWARD                   
+                elif self.Pos[2] == DOWN:  return TURN_F                 
+                elif self.Pos[2] == RIGHT: return TURN_L                  
+                elif self.Pos[2] == LEFT:  return TURN_R
+                else: return Wolf.STAY
+            else:
+                if self.Pos[2]   == UP:    return TURN_F           
+                elif self.Pos[2] == DOWN:  return FORWARD                 
+                elif self.Pos[2] == RIGHT: return TURN_R                  
+                elif self.Pos[2] == LEFT:  return TURN_L
+                else: return Wolf.STAY
