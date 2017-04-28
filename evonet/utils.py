@@ -7,7 +7,93 @@ import numpy as np
 import scipy as sci
 
 # local imports
+from .game_objects import UP, DOWN, LEFT, RIGHT
+from . import map
 
+def grid_from_position(pos, size_x, size_y):
+    '''
+    Return all points of a grid, given a point and a size.
+    '''
+    collision_grid = []
+
+    if pos[2] == UP or pos[2] == DOWN:
+        for w in range(size_x):
+            for h in range(size_y):
+                collision_grid.append((pos[0]+w,pos[1]+h)) 
+    else:
+        for w in range(size_x):
+            for h in range(size_y):
+                collision_grid.append((pos[0]+h,pos[1]+w))
+
+    return tuple(collision_grid)
+
+def random_position(tile_map, forbidden_types=[], min_space=1, random_orientation=False, strict_type_check=True):
+        '''
+        Returns a random point on the given map that is min_space points away from the border and not one of the types in forbidden_types.
+        If stric type checking is True, the point and an area of min_space from that point is checked to be not a forbidden type.
+        '''
+        # calculate bounds
+        MAX_WIDTH  = tile_map.shape[0] - 1 - (min_space - 1) # map width
+        MAX_HEIGHT = tile_map.shape[1] - 1 - (min_space - 1) # map height
+
+        # generate a position candidate
+        valid_pos = False
+        while not valid_pos:
+
+            X = np.random.randint(1, MAX_WIDTH)   # Lower Bound is inklusive
+            Y = np.random.randint(1, MAX_HEIGHT)  # Upper Bound is exklusive
+            valid_pos = True
+
+            for type in forbidden_types:
+                if strict_type_check:
+                    for w in range(min_space):
+                        for h in range(min_space):
+                            tile_type = tile_map[X+w,Y+h].TileType
+                            if (tile_type == type) or (tile_type == map.EOW):
+                                valid_pos = False
+                                break
+                        if not valid_pos: break
+                    if not valid_pos: break
+                else:
+                    if (tile_map[X,Y].TileType == type) or (tile_map[X,Y].TileType == map.EOW):
+                        valid_pos = False
+                        break
+
+        # return the position with random or fixed orientation
+        if random_orientation:
+            O = np.random.randint(0, 4)
+            return ( X, Y, O)
+        else:
+            return ( X, Y, 0)
+
+def free_random_position(tile_map, objects, forbidden_types=[], min_space=1, random_orientation=False):
+        '''
+        This methods will return a "free" point on the given map which can be used as a GameObject position for instance.
+        To be a valid candidate position, an area of min_space (starting from the candidate position) is checked. If any 
+        point in that area is of a forbidden type or is blocked by another game_object, the candidate will be rejected.
+        '''        
+        pos_free = False
+        while not pos_free:
+
+            pos_free = True
+            candidate = random_position(tile_map, forbidden_types, min_space, random_orientation)
+            candidate_grid = grid_from_position(candidate, min_space, min_space)
+            
+            for game_object in objects:
+                game_object_grid = game_object.get_collision_grid()
+                
+                for point in candidate_grid:
+                    if point in game_object_grid:
+                        pos_free = False
+                        break
+
+                if not pos_free: break
+
+        return candidate
+
+'''
+Procedural map generation
+'''
 def interpolate(a: float,b: float,t: float):
         T2 = (1 - sci.cos(t * sci.pi)) / 2
         return (a * (1 - T2) + b * T2)
