@@ -9,6 +9,7 @@ import pickle
 
 # local imports
 from . import map
+from . import utils
 from .game_objects import Survivor, ViewPort, Fireplace, Sheep, Wolf, create_marker_rect
 from .card import Card
 
@@ -19,7 +20,7 @@ class EvoWorld():
     Applies dynamics based on agent actions and
     can render the World State as well as the Agent Views
     '''
-    def __init__(self, map_width, map_height, water_percentage, init_tile_size):
+    def __init__(self, map_width, map_height, water_percentage, init_tile_size, rewards):
         
         self.MAPWIDTH = map_width
         self.MAPHEIGHT = map_height
@@ -40,20 +41,22 @@ class EvoWorld():
         self.ClippingBorder   = 0
 
         self.score = 0
-        self.rewards = {
-            "positive": 1.0,
-            "negative": -1.0,
-            "tick": 0.0,
-            "loss": -5.0,
-            "win": 5.0
-        }
+        self.rewards = rewards
 
         self.NumAgents = 0
+        self.NumSheeps = 0
+        self.NumWolfs  = 0
+        self.NumFires  = 0
+
         self.AgentList = {}
+        self.NPC_List  = []
         self.CardList  = {}
         self.CARD_MARGIN = 30 
         self.rng = None
         self.ActivePlayer = 0
+
+        self.DRAW_VIEW_AREAS = False
+        self.DRAW_MARKER = False
         
 
         # Some helpful sprite groups which we can use for drawing and collison detection
@@ -66,8 +69,9 @@ class EvoWorld():
         self.water_group            = pygame.sprite.RenderUpdates()
         self.dirty_sprites_group    = pygame.sprite.RenderUpdates()
         # Game Object related groups
-        self.game_objects_group     = pygame.sprite.RenderUpdates()
-        self.survivor_group         = pygame.sprite.RenderUpdates()
+        self.game_objects_group     = pygame.sprite.RenderUpdates() # A group with all "living" game_objects
+        self.survivor_group         = pygame.sprite.RenderUpdates() # Only the living agents
+        self.npc_group              = pygame.sprite.RenderUpdates() # All NPC objects like sheeps, wolfs and fires
 
     def save_map(self, file_name, dir):
         if(self.START_MAP is None): raise Exception("No Map to save yet!")
@@ -103,13 +107,16 @@ class EvoWorld():
         return (self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
     
 
-    def init(self, rng, num_agents=1, view_port_dimensions={}):
+    def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=1, num_wolf=1, num_fire=1):
 
         # Set the rng
         self.rng = rng
         
         # Set the number of agents
         self.NumAgents = num_agents
+        self.NumSheeps = num_sheep
+        self.NumWolfs  = num_wolf
+        self.NumFires  = num_fire
 
         if not view_port_dimensions:
             raise Exception("Please provide a ViewPort dict in the form: {'grid_points_left':a, 'grid_points_right:b', 'grid_points_front':c, 'grid_points_back':d}")
@@ -137,18 +144,8 @@ class EvoWorld():
         # Create our Agents
         self.create_agents(self.NumAgents)
 
-        # Create other game Objects
-        fp = Fireplace(self.random_position(), self.TileSize, self.ClippingBorder)
-        self.everything_group.add(fp)
-        self.game_objects_group.add(fp)
-
-        sheep = Sheep(self.random_position(), self.TileSize, self.ClippingBorder)
-        self.everything_group.add(sheep)
-        self.game_objects_group.add(sheep)
-
-        wolf = Wolf(self.random_position(), self.TileSize, self.ClippingBorder)
-        self.everything_group.add(wolf)
-        self.game_objects_group.add(wolf)
+        # Create the Game Objects
+        self.create_game_objects(self.NumSheeps, self.NumWolfs, self.NumFires)
 
         # Reset the GameState
         self.reset()
@@ -160,16 +157,60 @@ class EvoWorld():
         self.AgentList = {}
         for ID in range(num_agents):
 
-            start_pos = self.random_position()
-            NewAgent = Survivor(ID, self.ViewPort, start_pos, self.TileSize, self.ClippingBorder)
+            start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites())
+            NewAgent = Survivor(ID, self.rewards, self.ViewPort, start_pos, self.TileSize, self.ClippingBorder)
             
             self.AgentList[ID] = { "ID" : ID, "Agent" : NewAgent, "ViewPort_Grid" : NewAgent.ViewPort.get_grid_dimensions(), "ViewPort" : None, "AgentView" : None}
             # add to groups
             self.everything_group.add(NewAgent)
-            #self.game_objects_group.add(NewAgent)
+            self.game_objects_group.add(NewAgent)
             self.survivor_group.add(NewAgent)
 
+    def create_game_objects(self, num_sheep, num_wolf, num_fire):
+        self.NPC_List = []
+
+        for ID in range(num_sheep):
+            start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=2)
+            sheep = Sheep(start_pos, self.TileSize, self.ClippingBorder)
+            
+            self.everything_group.add(sheep)
+            self.game_objects_group.add(sheep)
+            self.npc_group.add(sheep)
+            self.NPC_List.append(sheep)
+
+        for ID in range(num_wolf):
+            start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=2)
+            wolf = Wolf( start_pos, self.TileSize, self.ClippingBorder)
+            
+            self.everything_group.add(wolf)
+            self.game_objects_group.add(wolf)
+            self.npc_group.add(wolf)
+            self.NPC_List.append(wolf)
+
+        for ID in range(num_fire):
+            start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=4)
+            fp = Fireplace(start_pos, self.TileSize, self.ClippingBorder)
+            
+            self.everything_group.add(fp)
+            self.game_objects_group.add(fp)
+            self.npc_group.add(fp)
+            self.NPC_List.append(fp)
+
+    def create_cards(self):
+        self.CardList  = {}
+        for agent in self.AgentList:
+            ID = self.AgentList[agent]["ID"]
+            self.CardList[ID] = Card(self.AgentList[agent],
+                                     self.MAPHEIGHT, 
+                                     self.TileSize)
+
     def create_new_map(self, loaded_map=None):
+
+        # do some sanity checks before creation:
+        total_grid_points        = (self.MAPWIDTH - 1) * (self.MAPHEIGHT - 1)
+        total_game_object_points = (self.NumAgents * 1) + (self.NumSheeps * 2) + (self.NumWolfs * 2) + (self.NumFires * 16)
+        if (total_game_object_points / total_grid_points) >= 1: 
+            raise Exception("The requested map size is not big enough to fit the requested number of agents/animals")
         
         self.everything_group.empty()      
         self.bord_objects_group.empty()  
@@ -178,6 +219,10 @@ class EvoWorld():
         self.land_group.empty()
         self.water_group.empty()
         self.dirty_sprites_group.empty()
+
+        self.game_objects_group.empty()
+        self.survivor_group.empty()
+        self.npc_group.empty()
 
         if loaded_map:
             self.START_MAP = loaded_map
@@ -188,6 +233,10 @@ class EvoWorld():
                                                                  self.WATER_PERCENTAGE, 
                                                                  self.TileSize, 
                                                                  self.ClippingBorder)
+
+        #if self.START_MAP["Stats"]["land"] >
+        # check if valid map:
+        print("LAND IN MAP: {} needed: {}".format(self.START_MAP["Stats"]["land"], total_game_object_points))
 
         # Sort all map sprites to their appropriate group
         for Tile in self.TileMap.flatten():
@@ -226,39 +275,38 @@ class EvoWorld():
             Tile.reset()
        
         # Reset all Agents
-        for id in self.AgentList:
-            agent = self.AgentList[id]["Agent"]
-            agent.reset(self.random_position())
+        for ID in self.AgentList:
+            agent = self.AgentList[ID]["Agent"]
+
+            # find a position that is no blocked by another GameObject
+            new_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites())
+            agent.reset(new_pos)
+
             self.everything_group.add(agent)
-            #self.game_objects_group.add(agent)
+            self.game_objects_group.add(agent)
             self.survivor_group.add(agent)
 
-        for game_object in self.game_objects_group.sprites():
-            game_object.reset(self.random_position())
+        for NPC in self.NPC_List:
 
-        # make sure there is an initial view
+            # find a position that is no blocked by another GameObject
+            new_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=NPC.GRID_MAX)
+            NPC.reset(new_pos)
+
+            self.everything_group.add(NPC)
+            self.game_objects_group.add(NPC)
+            self.npc_group.add(NPC)
+
+
+        # redraw everything to have a "clean" screen and update the agent views
         self.everything_group.draw(self.MapSurface)
         self.update_agent_views()
 
-    def random_position(self, random_orientation=False):
-        # Starting point must be between grid positions 1 and MAP w/h - 2, because of the border.             
-        Start_X = self.rng.randint(1, self.MAPWIDTH  - 1)  # Lower Bound is inklusive
-        Start_Y = self.rng.randint(1, self.MAPHEIGHT - 1)  # Upper Bound is exklusive
         
-        if random_orientation:
-            Start_O = self.rng.randint(0, 4)
-            return (Start_X,Start_Y, Start_O)
-        else:
-            return (Start_X,Start_Y,0)
-        
+    def toggle_view_area(self):
+        self.DRAW_VIEW_AREAS = not self.DRAW_VIEW_AREAS
 
-    def create_cards(self):
-        self.CardList  = {}
-        for agent in self.AgentList:
-            ID = self.AgentList[agent]["ID"]
-            self.CardList[ID] = Card(self.AgentList[agent],
-                                     self.MAPHEIGHT, 
-                                     self.TileSize)
+    def toggle_marker(self):
+        self.DRAW_MARKER = not self.DRAW_MARKER
 
     def get_screen_dimensions(self):
         width  = self.MapSurface.get_width()
@@ -361,16 +409,22 @@ class EvoWorld():
 
         for agent in living_agents:
 
-            dirty_sprites = agent.update(action_list, self.TileMap, game_objects, living_agents)
+            game_objects  = self.game_objects_group.sprites()
+
+            #dirty_sprites = agent.update(action_list, self.TileMap, game_objects, living_agents)
+            dirty_sprites = agent.update(action_list, self.TileMap, game_objects)
             self.dirty_sprites_group.add(dirty_sprites)
 
         # update all game objects
-        living_agents = self.survivor_group.sprites()
-        game_objects  = self.game_objects_group.sprites()
+        #living_agents = self.survivor_group.sprites()
+        #game_objects  = self.game_objects_group.sprites()
 
-        for game_object in game_objects:
-            
-            dirty_sprites = game_object.update(action_list, self.TileMap, game_objects, living_agents)
+       # for game_object in game_objects:
+        for npc in self.npc_group:
+            game_objects  = self.game_objects_group.sprites()
+
+          #  dirty_sprites = game_object.update(action_list, self.TileMap, game_objects, living_agents)
+            dirty_sprites = npc.update(action_list, self.TileMap, game_objects)
             self.dirty_sprites_group.add(dirty_sprites)
 
         #self.game_objects_group.update()
@@ -438,23 +492,28 @@ class EvoWorld():
         for game_object in self.game_objects_group.sprites():
             # if isinstance(game_object, Sheep):
             
-            # Calculate ViewPort and Orientation Marker with new scale and offset
-            ViewPort_scaled = game_object.get_view_scaled(  8, Offset)
-            Marker_scaled   = game_object.get_marker_scaled(8, Offset) 
-            # Draw the scaled ViewPort and Marker
-            pygame.draw.rect(screen, (255,0,0), ViewPort_scaled, 2)
-            pygame.draw.rect(screen, (0,255,0), Marker_scaled)
+            if self.DRAW_VIEW_AREAS:
+                ViewPort_scaled = game_object.get_view_scaled(  8, Offset)
+                pygame.draw.rect(screen, (255,0,0), ViewPort_scaled, 2)
+
+            if self.DRAW_MARKER:
+                Marker_scaled   = game_object.get_marker_scaled(8, Offset) 
+                pygame.draw.rect(screen, (0,255,255), Marker_scaled)
 
         # Draw a ViewPort representation
         for id in self.AgentList:
 
             agent = self.AgentList[id]["Agent"]
-            # Calculate ViewPort and Orientation Marker with new scale and offset
-            ViewPort_scaled = agent.get_view_scaled(  8, Offset)
-            Marker_scaled   = agent.get_marker_scaled(8, Offset) 
-            # Draw the scaled ViewPort and Marker
-            pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
-            pygame.draw.rect(screen, (228,228,228), Marker_scaled)
+
+            if self.DRAW_VIEW_AREAS:
+                ViewPort_scaled = agent.get_view_scaled(  8, Offset)
+                pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
+
+            if self.DRAW_MARKER:
+                # Calculate ViewPort and Orientation Marker with new scale and offset
+                Marker_scaled   = agent.get_marker_scaled(8, Offset) 
+                # Draw the scaled ViewPort and Marker
+                pygame.draw.rect(screen, (228,228,228), Marker_scaled)
 
         return (w, h, Offset)
 
@@ -464,30 +523,38 @@ class EvoWorld():
 
         for game_object in self.game_objects_group.sprites():
             
-            ViewPort = game_object.get_view()
-            Marker   = game_object.get_marker()
-            # Offset by x and y
-            ViewPort.x += x
-            ViewPort.y += y 
-            Marker.x += x
-            Marker.y += y  
-            pygame.draw.rect(screen, (255,0,0), ViewPort, 2)
-            pygame.draw.rect(screen, (0,255,0), Marker)
+            if self.DRAW_VIEW_AREAS:
+
+                ViewPort = game_object.get_view()
+                ViewPort.x += x
+                ViewPort.y += y
+                pygame.draw.rect(screen, (255,0,0), ViewPort, 2)
+
+            if self.DRAW_MARKER:
+                Marker   = game_object.get_marker()
+                # Offset by x and y
+                Marker.x += x
+                Marker.y += y  
+                pygame.draw.rect(screen, (0,255,255), Marker)
 
         # Draw a ViewPort representation
         for id in self.AgentList:
 
             agent = self.AgentList[id]["Agent"]
             # Get the agents ViewPort
-            ViewPort = self.AgentList[id]["ViewPort"]
-            Marker   = agent.get_marker()
-            # Offset by x and y
-            ViewPort.x += x
-            ViewPort.y += y 
-            Marker.x += x
-            Marker.y += y
-            # Draw the real ViewPort and Marker
-            pygame.draw.rect(screen, (0,0,255), ViewPort, 2)
-            pygame.draw.rect(screen, (228,228,228), Marker)
+
+            if self.DRAW_VIEW_AREAS:
+                ViewPort = self.AgentList[id]["ViewPort"]
+                ViewPort.x += x
+                ViewPort.y += y 
+                pygame.draw.rect(screen, (0,0,255), ViewPort, 2)
+
+            if self.DRAW_MARKER:
+                Marker   = agent.get_marker()
+                # Offset by x and y
+                Marker.x += x
+                Marker.y += y
+                # Draw the real ViewPort and Marker
+                pygame.draw.rect(screen, (228,228,228), Marker)
 
         return (self.MapSurface.get_width(), self.MapSurface.get_height(), self.ClippingBorder)
