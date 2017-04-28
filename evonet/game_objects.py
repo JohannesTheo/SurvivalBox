@@ -10,6 +10,10 @@ from pygame import K_UP, K_DOWN, K_LEFT, K_RIGHT, K_COMMA, K_PERIOD, K_F15
 
 # local imports
 from . import map
+from . import utils
+
+MANUAL=True
+RANDOM=False
 
 # orientation
 UP    = 0
@@ -53,7 +57,6 @@ FIRE_OFF       = pygame.image.load(os.path.join(_DIR,'assets/fire_off.png')) #.c
 SHEEP          = pygame.image.load(os.path.join(_DIR,'assets/sheep.png')) #.convert()
 WOLF           = pygame.image.load(os.path.join(_DIR,'assets/wolf.png')) #.convert()
 
-
 def create_marker_rect(Pos, TileSize, Offset, size_x=1, size_y=1):
         '''
         This method returns the grid point infront of the given position (depending on the orientation), as a scaled rectangle.
@@ -86,9 +89,10 @@ class GameObject():
 
         self.GRID_W = grid_size[0] # grid width  of the object in UP/DOWN position
         self.GRID_H = grid_size[1] # grid height of the object in UP/DOWN position
+        self.GRID_MAX = max(self.GRID_W,self.GRID_H)
         
-        self.Grid    = self.update_collision_grid()
-        self.OldGrid = self.Grid
+        self.Grid     = self.update_collision_grid()
+        self.OldGrid  = self.Grid
         
         self.TileSize = tile_size
         self.Offset   = offset
@@ -134,19 +138,10 @@ class GameObject():
         return create_marker_rect(self.Pos, tile_size, offset, self.GRID_W, self.GRID_H)
 
     def update_collision_grid(self):
+        return utils.grid_from_position(self.Pos, self.GRID_W, self.GRID_H)
 
-        collision_grid = []
-
-        if self.Pos[2] == UP or self.Pos[2] == DOWN:
-            for w in range(self.GRID_W):
-                for h in range(self.GRID_H):
-                    collision_grid.append((self.Pos[0]+w,self.Pos[1]+h)) 
-        else:
-            for w in range(self.GRID_W):
-                for h in range(self.GRID_H):
-                    collision_grid.append((self.Pos[0]+h,self.Pos[1]+w))
-
-        return tuple(collision_grid)
+    def select_random_move(self, actions=[]):
+            return np.random.choice(actions)
 
     def move(self, action):
         self.OldPos  = self.Pos.copy()
@@ -195,7 +190,7 @@ class GameObject():
         self.Grid = self.update_collision_grid()
         self.OldGrid = self.Grid
         self.update_render_pos(rotate=True)
-    
+
     def update(self):
         raise NotImplementedError()
 
@@ -271,7 +266,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                       K_F15   : NOOP
                     }
 
-    def __init__(self, ID, view_port, agent_start_pos=(1,1,0), size=8, offset=0):
+    def __init__(self, ID, rewards, view_port, agent_start_pos, size, offset):
         
         pygame.sprite.Sprite.__init__(self)
 
@@ -286,7 +281,8 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         self.Energy = 3000.
         self._O_ENERGY = self.Energy
         self.CostMultiplier = 1
-        # reward
+        # rewards
+        self.rewards = rewards
         self.Score = 0
 
     def draw_as_ally(self, Surface):
@@ -295,7 +291,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
     def draw_as_self(self, Surface):
         Surface.blit(self.image, self.rect)
 
-    def update(self, action_list, tile_map, game_objects, living_agents):
+    def update(self, action_list, tile_map, living_creatures):
 
         # apply the basic cost
         self.Energy -= 1 * self.CostMultiplier
@@ -310,6 +306,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         self.move(action)
 
         # Check collisions with map and other game_objects
+        dead_wolf_sprites = ()
         for point in self.Grid:
 
             colliding_map_tile = tile_map[point]
@@ -318,31 +315,46 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                 self.set_back()
                 break
 
-            for game_object in game_objects:
-                if point in game_object.get_collision_grid():
+            for creature in living_creatures:
+                if point in creature.get_collision_grid():
 
-                    if isinstance(game_object, Wolf):
-                        # reset the wolf and apply reward
+                    if isinstance(creature, Survivor):
+                        if self.ID != creature.ID:
+                            self.set_back()
+                            break
+
+                    elif isinstance(creature, Wolf):
                         print("GOT THE WOLF!")
+                        
+                        # Apply the reward
+                        self.Score += self.rewards["wolf"]
+                        print("WOLF  // Agent {}: +{} new score: {}".format(self.ID, self.rewards["wolf"], self.Score))
+                        
+                        # Save the wolfs position for redrawing later
+                        dead_wolf_sprites = creature.get_collision_grid()
+
+                        # Find a new random position for the wolf and reset
+                        new_pos = utils.free_random_position( tile_map, living_creatures, forbidden_types=[map.WATER], min_space=creature.GRID_MAX)
+                        creature.reset(new_pos)
                         break
                     else:
                         self.set_back()
                         break
-                    
-            for agent in living_agents:
-                if self.ID != agent.ID:
-                    if point in agent.get_collision_grid():
-                        self.set_back()
-                        break
+
+        # Now that we have the final position update the map on this position
+        for point in self.Grid:
+            colliding_map_tile = tile_map[point]
 
             if colliding_map_tile.TileType == map.WATER:
                 self.CostMultiplier = Survivor.COST_MULT_WATER
             else:
                 self.CostMultiplier = Survivor.COST_MULT_LAND
 
-            # update the Map on the correct pos
             colliding_map_tile.update(self)
 
+        # Add the sprites points from the dead wolf to our self.OldGrid for redrawing!
+        self.OldGrid += dead_wolf_sprites
+        # Return all sprites that need redrawing
         return self.update_render_pos(tile_map=tile_map)
 
     def reset(self, new_pos):
@@ -374,21 +386,34 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
         self.IMAGE_2 = pygame.transform.scale(self.BASE_IMAGE_2, (self.TileSize * self.GRID_W, self.TileSize * self.GRID_H))
 
         self.ON = False
+        self.FIRE_GUARD = -1 # only one agent can be the fire guard at the same time. First come, first serve!
         self.test = 0
 
-    def update(self, actions, tile_map, game_objects, living_agents):
+    def update(self, actions, tile_map,  living_creatures):
 
         self.ON = False
-        for agent in living_agents:
-            if self.get_view_grid().collidepoint(agent.get_grid_pos()):
-                print("FIRE!, Agent in reach: {}".format(agent.ID))
-                self.ON = True
-        
+        for creature in living_creatures:
+            if isinstance(creature, Survivor):
+
+                # Check if the survivor is inside the activation area!
+                if self.get_view_grid().collidepoint(creature.get_grid_pos()):
+                    #print("FIRE!, Survivor in reach: {}".format(creature.ID))
+                    
+                    # If no one or the current survivor is the fire guard, apply the reward and turn the fire on.
+                    if (self.FIRE_GUARD == -1) or (self.FIRE_GUARD == creature.ID):
+                        self.FIRE_GUARD = creature.ID
+                        creature.Score += creature.rewards["fire"]
+                        self.ON = True
+                        #print("FIRE  // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["wolf"], agent.Score))
+
+        # Switch the image based on the fir status
         if self.ON:
             self.image = self.IMAGE_2 # Fire on
         else:
+            self.FIRE_GUARD = -1
             self.image = self.IMAGE   # Fire off
         
+        # return no dirty sprites since the fire is not moving anywhere
         return []
 
     def scale_to(self, tile_size, offset):
@@ -398,6 +423,7 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
     def reset(self, new_pos):
         self.test = 0
         self.ON = False
+        self.FIRE_GUARD = -1
         super(Fireplace, self).reset(new_pos)
 
 class Sheep(pygame.sprite.DirtySprite, GameObject):
@@ -417,39 +443,22 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
         SheepArea = ViewPort(5,5,5,4)
         GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert(), SheepArea)
 
-        self.MOVE_EVERY_N_STEPS = 4
-        self.Steps = 0
+        self.MOVE_EVERY_N_STEPS = 1
+        self.WorldSteps = 0
+        self.SHEPHERD = -1 # only one agent can be the sheeps shepherd at the same time. First come, first serve!
 
-    def update(self, actions, tile_map, game_objects, living_agents):
+    def update(self, manual_actions, tile_map,  living_creatures):
+        
+        # increment the WorldSteps
+        self.WorldSteps += 1
 
-        # Select an action
-        self.Steps += 1
-        if (self.Steps % self.MOVE_EVERY_N_STEPS == 0):
-            action_prob = np.random.random()
-            if action_prob < 0.1:
-                action = TURN_L
-            elif action_prob < 0.2:
-                action = TURN_R
-            elif action_prob < 0.9:
-                action = FORWARD
-            else:
-                action = STAY
+        # select an action
+        action = self.select_move(manual_actions)
 
-            '''
-            # Select the same action as player x for manuel play/testing
-            self.ACTIONS = { K_UP    : MOVE_FORWARD,     K_DOWN  : MOVE_BACKWARD,    K_LEFT   : MOVE_LEFT, 
-                             K_RIGHT : MOVE_RIGHT,       K_COMMA : ANIMAL_TURN_LEFT, K_PERIOD : ANIMAL_TURN_RIGHT,
-                             FORWARD : MOVE_FORWARD,     TURN_L  : ANIMAL_TURN_LEFT, TURN_R   : ANIMAL_TURN_RIGHT,
-                             TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
-            action = actions[0]
-
-            # Select a fully random action
-            #action = self.move(self.select_random_move())
-            '''
-
-            # Apply the chosen action
-            self.move(action)
+        # apply the chosen action
+        self.move(action)
     
+        # Check collisions and set the final position
         for point in self.Grid:
             colliding_map_tile = tile_map[point]
             
@@ -462,30 +471,69 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                 self.move(TURN_F)
                 break
 
-            for game_object in game_objects:
-                if not isinstance(game_object, Sheep):
-                    if point in game_object.get_collision_grid():
+            # The Sheep is blocked by every creature that is not a sheep
+            for creature in living_creatures:
+                if not isinstance(creature, Sheep):
+                    if point in creature.get_collision_grid():
                         self.set_back()
                         break
 
-            for agent in living_agents:
-                if self.get_view_grid().collidepoint(agent.get_grid_pos()):
-                    print("SHEPARD is agent: {}".format(agent.ID))
+        # Now that we have the final position update the map on this position
+        for point in self.Grid:
+            tile_map[point].update()
 
-                if point in agent.get_collision_grid():
-                    self.set_back()
-                    break
+        # With the final position search for shepherds
+        has_a_shepherd = False
+        for creature in living_creatures:
+            if isinstance(creature, Survivor):
 
-            # update the Map on the correct pos
-            colliding_map_tile.update()
+                # Check if the survivor is inside the activation area!
+                if self.get_view_grid().collidepoint(creature.get_grid_pos()):
+                    #print("SHEPARD, Agent in reach: {}".format(agent.ID))
+
+                    # If the sheep has no shepherd or the survivor is already its shepherd, apply the reward and set "new" shepherd
+                    if (self.SHEPHERD == -1) or (self.SHEPHERD == creature.ID):
+                        self.SHEPHERD = creature.ID
+                        creature.Score += creature.rewards["sheep"]
+                        has_a_shepherd = True
+                        #print("SHEEP // Agent {}: +{} new score: {}".format(creature.ID, creature.rewards["sheep"], creature.Score))
+
+        # If there was no survivor in range, reset the sheeps "ownership"
+        if not has_a_shepherd:
+            self.SHEPHERD = -1
         
+        # Return all sprites that need redrawing
         return self.update_render_pos(rotate=True, tile_map=tile_map)
 
-    def select_random_move(self, with_stay=True):
-        if with_stay:
-            return np.random.choice([FORWARD, TURN_R, TURN_L, STAY])
-        else:
-            return np.random.choice([FORWARD, TURN_R, TURN_L])
+    def select_move(self, manual_actions=[]):
+
+            # The basic movement of the Sheep. Every n world steps select a move with some probability.
+            if (self.WorldSteps % self.MOVE_EVERY_N_STEPS == 0):
+                action_prob = np.random.random()
+                if action_prob < 0.1:
+                    action = TURN_L
+                elif action_prob < 0.2:
+                    action = TURN_R
+                elif action_prob < 0.9:
+                    action = FORWARD
+                else:
+                    action = STAY  
+            else:
+                action = STAY
+              
+            # If the Game is set to MANUAL or RANDOM mode overwrite the action
+            if MANUAL:
+                # Select the same action as player x for manuel play/testing
+                self.ACTIONS = { K_UP    : MOVE_FORWARD,     K_DOWN  : MOVE_BACKWARD,    K_LEFT   : MOVE_LEFT, 
+                                 K_RIGHT : MOVE_RIGHT,       K_COMMA : ANIMAL_TURN_LEFT, K_PERIOD : ANIMAL_TURN_RIGHT,
+                                 FORWARD : MOVE_FORWARD,     TURN_L  : ANIMAL_TURN_LEFT, TURN_R   : ANIMAL_TURN_RIGHT,
+                                 TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
+                action = manual_actions[0]
+            
+            elif RANDOM:
+                action = self.select_random_move([FORWARD, TURN_L, TURN_R, STAY])
+
+            return action
 
 class Wolf(pygame.sprite.DirtySprite, GameObject):
 
@@ -503,55 +551,29 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
 
         WolfArea = ViewPort(8,8,8,8)
         GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea)
+        self.DMG = 50
+        self.MOVE_EVERY_N_STEPS = 1
+        self.WorldSteps = 0
 
-    def update(self, actions, tile_map, game_objects, living_agents):
+    def update(self, manual_actions, tile_map,  living_creatures):
 
-        HUNTING = False
-        SHEEP_POS = None
+        # increment the WorldSteps
+        self.WorldSteps += 1
 
-        for game_object in game_objects:
-            if isinstance(game_object, Sheep):
-                area = self.get_view_grid()
-                sheep = game_object.get_collision_grid()
+        # Check if a sheep is in the hunting range
 
-                for point in sheep:
-                    if area.collidepoint(point):
-                        HUNTING = True
-                        SHEEP_POS = game_object.get_grid_pos()
-                        print("SHEEEEEP spottet")
-                        break
+        HUNTING, SheepPos = self.snoop(living_creatures)
 
-        # Select an action
-        if HUNTING:
-            WOLF_POS = self.get_grid_pos()
-            action = self.select_hunt_move(hunter_pos=WOLF_POS, victim_pos=SHEEP_POS)
-        else:
-            action_prob = np.random.random()
-            if action_prob < 0.1:
-                action = TURN_L
-            elif action_prob < 0.2:
-                action = TURN_R
-            elif action_prob < 0.9:
-                action = FORWARD
-            else:
-                action = STAY
-        
-        '''
-        # Select the same action as player x for manuel play/testing
-        self.ACTIONS = { K_UP    : MOVE_FORWARD,     K_DOWN  : MOVE_BACKWARD,    K_LEFT   : MOVE_LEFT, 
-                         K_RIGHT : MOVE_RIGHT,       K_COMMA : ANIMAL_TURN_LEFT, K_PERIOD : ANIMAL_TURN_RIGHT,
-                         FORWARD : MOVE_FORWARD,     TURN_L  : ANIMAL_TURN_LEFT, TURN_R   : ANIMAL_TURN_RIGHT,
-                         TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
-        action = actions[1]
-
-        # Select a fully random action
-        #action = self.move(self.select_random_move())
-        '''
+        # select an action
+        action = self.select_move(HUNTING, SheepPos, manual_actions)
 
         # apply the chosen action
         self.move(action)
 
+        # check collisions with map and game objects
+        dead_sheep_sprites = ()
         for point in self.Grid:
+
             colliding_map_tile = tile_map[point]
             
             if colliding_map_tile.TileType == map.EOW:
@@ -563,31 +585,63 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                 self.move(TURN_F)
 
                 if HUNTING:
-                    # attemp another move to better escape from "trapped" situatios 
-                    self.move(self.select_random_move(False))
-                    for point_2 in self.Grid:
-                        colliding_map_tile = tile_map[point_2]
-                        if colliding_map_tile.TileType == map.WATER or colliding_map_tile.TileType == map.EOW:
+                    # attempt another move to better escape from "trapped" situatios
+                    self.move(self.select_random_move([FORWARD, TURN_L, TURN_R]))
+                    
+                    # check collisions with mao again.
+                    for new_point in self.Grid:
+                        
+                        new_map_tile = tile_map[new_point]
+
+                        if new_map_tile.TileType == map.WATER or new_map_tile.TileType == map.EOW:
                             self.set_back()
                             break
+                        
+                        sheep = self.check_object_collisions(new_point, tile_map, living_creatures)
+                        if sheep: dead_sheep_sprites = sheep
+                break
 
-            for game_object in game_objects:
-                if point in game_object.get_collision_grid():
-                    if isinstance(game_object, Sheep):
-                        # reset the wolf and apply reward
+            sheep = self.check_object_collisions(point,tile_map, living_creatures)
+            if sheep: dead_sheep_sprites = sheep
+
+        # Add the sprites points from the dead sheep to our self.OldGrid for redrawing!
+        self.OldGrid += dead_sheep_sprites
+        # Return all sprites that need redrawing
+        return self.update_render_pos(rotate=True, tile_map=tile_map)
+
+    def check_object_collisions(self, point, tile_map, living_creatures):
+        
+        dead_sheep_sprites = ()
+        for creature in living_creatures:
+            if not isinstance(creature, Wolf):
+                
+                if point in creature.get_collision_grid():
+
+                    if isinstance(creature, Sheep):
                         print("WOLF KILLS THE SHEEP!")
+
+                        # Save the sheeps position for redrawing later
+                        dead_sheep_sprites = creature.get_collision_grid()
+
+                        # Find a new random position for the sheep and reset
+                        new_pos = utils.free_random_position( tile_map, living_creatures, forbidden_types=[map.WATER], min_space=creature.GRID_MAX)
+                        creature.reset(new_pos)
                         break
-                    elif isinstance(game_object, Fireplace):
+
+                    elif isinstance(creature, Survivor):
+
+                        # Apply the attack damage of the wolf to the survivor, reset position
+                        creature.Energy -= self.DMG
+                        self.set_back()
+                        print("WOLF attacks Agent {} -{} dmg, new energy: {}!".format(creature.ID, self.DMG, creature.Energy))
+                        break
+                    else:
+                        # Every other game object is just unwalkable for the wolf
+                        print("HELLO")
                         self.set_back()
                         break
 
-            for agent in living_agents:
-                if point in agent.get_collision_grid():
-                    print("WOLF ATTACKS PLAYER {}!".format(agent.ID))
-                    self.set_back()
-                    break
-
-        return self.update_render_pos(rotate=True, tile_map=tile_map)
+        return dead_sheep_sprites
 
     def select_random_move(self, with_stay=True):
         if with_stay:
@@ -595,13 +649,71 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
         else:
             return np.random.choice([FORWARD, TURN_R, TURN_L])
 
+    def snoop(self, living_creatures):
+        '''
+        This method checks if a sheep is in the hunting area
+        '''
+        HUNTING = False
+        SheepPos = ()
+
+        for creature in living_creatures:
+            if isinstance(creature, Sheep):
+                
+                hunting_area = self.get_view_grid()
+                the_sheep = creature.get_collision_grid()
+
+                for point in the_sheep:
+                    if hunting_area.collidepoint(point):
+                        HUNTING = True
+                        SheepPos = creature.get_grid_pos()
+                        #print("WOLF spottet a sheep, hmmm.....")
+                        break
+
+        return HUNTING, SheepPos
+
+    def select_move(self, hunting, victim_pos, manual_actions=[]):
+
+        # If the wolf is in hunting mode, select a special move, else one of the basic moves.
+        if hunting:
+            wolf  = self.get_grid_pos()
+            sheep = victim_pos
+            action   = self.select_hunt_move(hunter_pos=wolf, victim_pos=sheep)
+        else:
+            # The basic movement of the Wolf. Every n world steps select a move with some probability.
+            if (self.WorldSteps % self.MOVE_EVERY_N_STEPS == 0):
+                action_prob = np.random.random()
+                if action_prob < 0.1:
+                    action = TURN_L
+                elif action_prob < 0.2:
+                    action = TURN_R
+                elif action_prob < 0.9:
+                    action = FORWARD
+                else:
+                    action = STAY
+            else:
+                action = STAY
+
+        # If the Game is set to MANUAL or RANDOM mode overwrite the action
+        if MANUAL:
+            # Select the same action as player x for manuel play/testing
+            self.ACTIONS = { K_UP    : MOVE_FORWARD,     K_DOWN  : MOVE_BACKWARD,    K_LEFT   : MOVE_LEFT, 
+                             K_RIGHT : MOVE_RIGHT,       K_COMMA : ANIMAL_TURN_LEFT, K_PERIOD : ANIMAL_TURN_RIGHT,
+                             FORWARD : MOVE_FORWARD,     TURN_L  : ANIMAL_TURN_LEFT, TURN_R   : ANIMAL_TURN_RIGHT,
+                             TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
+            action = manual_actions[1]
+        
+        elif RANDOM:
+            action = self.select_random_move([FORWARD, TURN_L, TURN_R, STAY])
+
+        return action
+
     def select_hunt_move(self, hunter_pos, victim_pos):
 
         diff_x = hunter_pos[0] - victim_pos[0]
         diff_y = hunter_pos[1] - victim_pos[1]
 
         reduce = diff_x if abs(diff_x) >= abs(diff_y) else diff_y
-        print("Wolf: {}, Sheep: {}, Diff: ({},{}, Reduce {})".format(hunter_pos, victim_pos, diff_x, diff_y, reduce))
+        #print("Wolf: {}, Sheep: {}, Diff: ({},{}, Reduce {})".format(hunter_pos, victim_pos, diff_x, diff_y, reduce))
 
         if reduce == diff_x:
             # again not smart but clear
