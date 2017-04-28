@@ -12,7 +12,7 @@ from pygame import K_UP, K_DOWN, K_LEFT, K_RIGHT, K_COMMA, K_PERIOD, K_F15
 from . import map
 from . import utils
 
-MANUAL=True
+MANUAL=False
 RANDOM=False
 
 # orientation
@@ -82,8 +82,9 @@ def create_marker_rect(Pos, TileSize, Offset, size_x=1, size_y=1):
 
 class GameObject():
 
-    def __init__(self, start_pos, tile_size, offset, grid_size, actions, base_image=None, view_port=None):
+    def __init__(self, ID, start_pos, tile_size, offset, grid_size, actions, base_image=None, view_port=None):
 
+        self.ID = ID
         self.Pos     = np.array(start_pos)
         self.OldPos  = self.Pos.copy()
 
@@ -272,9 +273,8 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
 
         base_image = pygame.Surface([size, size])
         base_image.fill((255,0,0))
-        GameObject.__init__(self, agent_start_pos, size, offset, (1,1), Survivor.BASIC_ACTIONS, base_image)
+        GameObject.__init__(self, ID, agent_start_pos, size, offset, (1,1), Survivor.BASIC_ACTIONS, base_image)
 
-        self.ID = ID
         self.ViewPort = view_port
 
         # dynamics
@@ -366,7 +366,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
  
 class Fireplace(pygame.sprite.DirtySprite, GameObject):
 
-    def __init__(self, pos, tile_size, offset=0, small=False):
+    def __init__(self, ID, pos, tile_size, offset=0, small=False):
         
         pygame.sprite.Sprite.__init__(self)
         if small:
@@ -379,7 +379,7 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
             NUM_TILES = 4
 
         FireArea = ViewPort(3,3,3,3)
-        GameObject.__init__(self, pos, tile_size, offset, (NUM_TILES, NUM_TILES), None, IMAGE_OFF, FireArea)
+        GameObject.__init__(self, ID, pos, tile_size, offset, (NUM_TILES, NUM_TILES), None, IMAGE_OFF, FireArea)
 
         # add a second Surface for the Fire ON image        
         self.BASE_IMAGE_2 = IMAGE_ON
@@ -436,12 +436,12 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                       STAY    : NOOP
                     }
 
-    def __init__(self, start_pos, tile_size=8, offset=0 ):
+    def __init__(self, ID, start_pos, tile_size=8, offset=0 ):
         
         pygame.sprite.Sprite.__init__(self)
 
         SheepArea = ViewPort(5,5,5,4)
-        GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert(), SheepArea)
+        GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert(), SheepArea)
 
         self.MOVE_EVERY_N_STEPS = 1
         self.WorldSteps = 0
@@ -471,10 +471,15 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                 self.move(TURN_F)
                 break
 
-            # The Sheep is blocked by every creature that is not a sheep
+            # The Sheep is blocked by every other creature
             for creature in living_creatures:
-                if not isinstance(creature, Sheep):
-                    if point in creature.get_collision_grid():
+                if point in creature.get_collision_grid():
+
+                    if isinstance(creature, Sheep):
+                        if self.ID != creature.ID:
+                            self.set_back()
+                            break
+                    else:                   
                         self.set_back()
                         break
 
@@ -545,12 +550,12 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                       STAY    : NOOP
                     }
 
-    def __init__(self, start_pos, tile_size=8, offset=0 ):
+    def __init__(self, ID, start_pos, tile_size=8, offset=0 ):
         
         pygame.sprite.Sprite.__init__(self)
 
         WolfArea = ViewPort(8,8,8,8)
-        GameObject.__init__(self, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea)
+        GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea)
         self.DMG = 50
         self.MOVE_EVERY_N_STEPS = 1
         self.WorldSteps = 0
@@ -601,7 +606,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                         if sheep: dead_sheep_sprites = sheep
                 break
 
-            sheep = self.check_object_collisions(point,tile_map, living_creatures)
+            sheep = self.check_object_collisions(point, tile_map, living_creatures)
             if sheep: dead_sheep_sprites = sheep
 
         # Add the sprites points from the dead sheep to our self.OldGrid for redrawing!
@@ -613,11 +618,14 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
         
         dead_sheep_sprites = ()
         for creature in living_creatures:
-            if not isinstance(creature, Wolf):
-                
-                if point in creature.get_collision_grid():
+            if point in creature.get_collision_grid():
 
-                    if isinstance(creature, Sheep):
+                if isinstance(creature, Wolf):
+                    if self.ID != creature.ID:
+                        self.set_back()
+                        break
+
+                elif isinstance(creature, Sheep):
                         print("WOLF KILLS THE SHEEP!")
 
                         # Save the sheeps position for redrawing later
@@ -626,20 +634,21 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                         # Find a new random position for the sheep and reset
                         new_pos = utils.free_random_position( tile_map, living_creatures, forbidden_types=[map.WATER], min_space=creature.GRID_MAX)
                         creature.reset(new_pos)
+                        creature.kill()
                         break
 
-                    elif isinstance(creature, Survivor):
+                elif isinstance(creature, Survivor):
 
-                        # Apply the attack damage of the wolf to the survivor, reset position
-                        creature.Energy -= self.DMG
-                        self.set_back()
-                        print("WOLF attacks Agent {} -{} dmg, new energy: {}!".format(creature.ID, self.DMG, creature.Energy))
-                        break
-                    else:
-                        # Every other game object is just unwalkable for the wolf
-                        print("HELLO")
-                        self.set_back()
-                        break
+                    # Apply the attack damage of the wolf to the survivor, reset position
+                    creature.Energy -= self.DMG
+                    self.set_back()
+                    print("WOLF attacks Agent {} -{} dmg, new energy: {}!".format(creature.ID, self.DMG, creature.Energy))
+                    break
+                else:
+                    # Every other game object is just unwalkable for the wolf
+                    print("HELLO")
+                    self.set_back()
+                    break
 
         return dead_sheep_sprites
 

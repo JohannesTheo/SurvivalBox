@@ -171,7 +171,7 @@ class EvoWorld():
 
         for ID in range(num_sheep):
             start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=2)
-            sheep = Sheep(start_pos, self.TileSize, self.ClippingBorder)
+            sheep = Sheep(ID, start_pos, self.TileSize, self.ClippingBorder)
             
             self.everything_group.add(sheep)
             self.game_objects_group.add(sheep)
@@ -180,7 +180,7 @@ class EvoWorld():
 
         for ID in range(num_wolf):
             start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=2)
-            wolf = Wolf( start_pos, self.TileSize, self.ClippingBorder)
+            wolf = Wolf(ID, start_pos, self.TileSize, self.ClippingBorder)
             
             self.everything_group.add(wolf)
             self.game_objects_group.add(wolf)
@@ -189,7 +189,7 @@ class EvoWorld():
 
         for ID in range(num_fire):
             start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=4)
-            fp = Fireplace(start_pos, self.TileSize, self.ClippingBorder)
+            fp = Fireplace(ID, start_pos, self.TileSize, self.ClippingBorder)
             
             self.everything_group.add(fp)
             self.game_objects_group.add(fp)
