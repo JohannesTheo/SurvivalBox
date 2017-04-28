@@ -634,7 +634,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                         # Find a new random position for the sheep and reset
                         new_pos = utils.free_random_position( tile_map, living_creatures, forbidden_types=[map.WATER], min_space=creature.GRID_MAX)
                         creature.reset(new_pos)
-                        creature.kill()
+                        #creature.kill()
                         break
 
                 elif isinstance(creature, Survivor):
