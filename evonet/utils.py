@@ -97,7 +97,7 @@ def free_random_position(tile_map, objects, forbidden_types=[], min_space=1, ran
                         break
 
                 if not pos_free: break
-        print("Needed {} tries to find a free place".format(tries))
+        # print("Needed {} tries to find a free place".format(tries))
         return candidate
 
 '''

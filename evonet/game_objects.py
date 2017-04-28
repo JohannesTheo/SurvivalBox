@@ -406,7 +406,22 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
                         self.ON = True
                         #print("FIRE  // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["wolf"], agent.Score))
 
-        # Switch the image based on the fir status
+
+        # Switch the Wolf and Sheep Movement Speed depending on the fire status
+        for creature in living_creatures:
+            if isinstance(creature, Wolf):
+                if self.ON:
+                    creature.MOVE_EVERY_N_STEPS = creature.SLOW
+                else:
+                    creature.MOVE_EVERY_N_STEPS = creature.FAST
+
+            if isinstance(creature, Sheep):
+                if self.ON:
+                    creature.MOVE_EVERY_N_STEPS = creature.FAST
+                else:
+                    creature.MOVE_EVERY_N_STEPS = creature.SLOW
+
+        # Switch the image based on the fire status
         if self.ON:
             self.image = self.IMAGE_2 # Fire on
         else:
@@ -443,7 +458,9 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
         SheepArea = ViewPort(5,5,5,4)
         GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert(), SheepArea)
 
-        self.MOVE_EVERY_N_STEPS = 1
+        self.SLOW = 6
+        self.FAST = 2
+        self.MOVE_EVERY_N_STEPS = self.SLOW
         self.WorldSteps = 0
         self.SHEPHERD = -1 # only one agent can be the sheeps shepherd at the same time. First come, first serve!
 
@@ -557,7 +574,9 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
         WolfArea = ViewPort(8,8,8,8)
         GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea)
         self.DMG = 50
-        self.MOVE_EVERY_N_STEPS = 1
+        self.SLOW = 5
+        self.FAST = 1
+        self.MOVE_EVERY_N_STEPS = self.FAST
         self.WorldSteps = 0
 
     def update(self, manual_actions, tile_map,  living_creatures):
@@ -681,26 +700,27 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
 
     def select_move(self, hunting, victim_pos, manual_actions=[]):
 
-        # If the wolf is in hunting mode, select a special move, else one of the basic moves.
-        if hunting:
-            wolf  = self.get_grid_pos()
-            sheep = victim_pos
-            action   = self.select_hunt_move(hunter_pos=wolf, victim_pos=sheep)
-        else:
-            # The basic movement of the Wolf. Every n world steps select a move with some probability.
-            if (self.WorldSteps % self.MOVE_EVERY_N_STEPS == 0):
-                action_prob = np.random.random()
-                if action_prob < 0.1:
-                    action = TURN_L
-                elif action_prob < 0.2:
-                    action = TURN_R
-                elif action_prob < 0.9:
-                    action = FORWARD
-                else:
-                    action = STAY
-            else:
-                action = STAY
+        action = STAY
+        # The basic movement of the Wolf. Every n world steps select a move with some probability.
+        if (self.WorldSteps % self.MOVE_EVERY_N_STEPS == 0):
 
+            # If the wolf is in hunting mode, select a special move, else one of the basic moves.
+            if hunting:
+                wolf  = self.get_grid_pos()
+                sheep = victim_pos
+                action   = self.select_hunt_move(hunter_pos=wolf, victim_pos=sheep)
+            else:
+                
+                    action_prob = np.random.random()
+                    if action_prob < 0.1:
+                        action = TURN_L
+                    elif action_prob < 0.2:
+                        action = TURN_R
+                    elif action_prob < 0.9:
+                        action = FORWARD
+                    else:
+                        action = STAY
+                        
         # If the Game is set to MANUAL or RANDOM mode overwrite the action
         if MANUAL:
             # Select the same action as player x for manuel play/testing
