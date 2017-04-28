@@ -22,6 +22,7 @@ MUD   = 4
 GRASS_GROWING = 5
 TREES_GROWING = 6
 
+
 resources = {EOW:'EOW', WATER:'WATER', DIRT:'DIRT', GRASS:'GRASS', MUD:'MUD', GRASS_GROWING: 'GRASS_GROWING', TREES_GROWING: 'TREES_GROWING'}
 
 _DIR = os.path.dirname(os.path.abspath(__file__))
@@ -145,6 +146,10 @@ def generate_tile_map(width, height, water_percentage, tile_size, clipping_borde
            dirt =Stats["dirt"],
            grass=Stats["grass"]))
 
+    #if Stats["water"] / Stats["total"] < 0.2:
+     #   print("MAP NOT COOL :/")
+      #  return generate_tile_map(width, height, water_percentage, tile_size, clipping_border)
+    #else:
     return (TileMap, START_MAP)
 
 
@@ -188,15 +193,16 @@ class Tile(pygame.sprite.DirtySprite):
         self.rect.x = self.Pos_x * self.TileSize + self.Offset
         self.rect.y = self.Pos_y * self.TileSize + self.Offset
 
-    def update(self, agent=None, rewards=None):
+    def update(self, agent=None):
 
         #print(self.TileType)
         # update is equivalent to act
         self.FoodValue -= 100
 
         if self.FoodValue <= 0 and self.TileType == GRASS:
-            if agent is not None and rewards is not None:
-                agent.Score += rewards["positive"]
+            if agent is not None:
+                agent.Score += agent.rewards["grass"]
+                print("GRASS // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["grass"], agent.Score))
             self.FoodValue = 0
             self.TileType = MUD
             self.scale_to(self.TileSize, self.Offset)
