@@ -646,7 +646,6 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                     break
                 else:
                     # Every other game object is just unwalkable for the wolf
-                    print("HELLO")
                     self.set_back()
                     break
 

@@ -205,12 +205,6 @@ class EvoWorld():
                                      self.TileSize)
 
     def create_new_map(self, loaded_map=None):
-
-        # do some sanity checks before creation:
-        total_grid_points        = (self.MAPWIDTH - 1) * (self.MAPHEIGHT - 1)
-        total_game_object_points = (self.NumAgents * 1) + (self.NumSheeps * 2) + (self.NumWolfs * 2) + (self.NumFires * 16)
-        if (total_game_object_points / total_grid_points) >= 1: 
-            raise Exception("The requested map size is not big enough to fit the requested number of agents/animals")
         
         self.everything_group.empty()      
         self.bord_objects_group.empty()  
@@ -234,9 +228,9 @@ class EvoWorld():
                                                                  self.TileSize, 
                                                                  self.ClippingBorder)
 
-        #if self.START_MAP["Stats"]["land"] >
-        # check if valid map:
-        print("LAND IN MAP: {} needed: {}".format(self.START_MAP["Stats"]["land"], total_game_object_points))
+        # TODO: We should do some sanity checks to make sure every GameObject will fit on the map!
+        # Something like: Map must have more valid spawn places (for the biggest object) than > total num of objects
+        # There must always be at least ONE free place of that size!
 
         # Sort all map sprites to their appropriate group
         for Tile in self.TileMap.flatten():
