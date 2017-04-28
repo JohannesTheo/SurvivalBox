@@ -66,6 +66,18 @@ class EvoNet(PyGameWrapper):
 
         PyGameWrapper.__init__(self, grid_width * self.TileSize, grid_height * self.TileSize, actions=self.ACTIONS)
 
+        self.rewards = {
+            "positive":  1.0, # same as pygamewrapper
+            "negative": -1.0, # same as pygamewrapper
+            "tick"    :  0.0, # same as pygamewrapper
+            "loss"    : -5.0, # same as pygamewrapper
+            "win"     :  5.0, # same as pygamewrapper
+            "grass"   :  1.0,
+            "sheep"   :  1.0,
+            "fire"    :  1.0,
+            "wolf"    :  1.0
+        }
+
         '''
         def __init__(self, width, height, actions={}):
 
@@ -236,7 +248,7 @@ class EvoNet(PyGameWrapper):
             self.rng = np.random.RandomState(24)
 
         if not self.env:
-            self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize)
+            self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards)
             self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions)
 
             # change this also in scale_to...
@@ -325,6 +337,12 @@ class EvoNet(PyGameWrapper):
                 elif event.key == K_1:
                     print("Scale DOWN")
                     self.scale_to(int(self.TileSize / 2))
+                elif event.key == K_3:
+                    print("Grid ON/OFF")
+                    self.env.toggle_view_area()
+                elif event.key == K_4:
+                    print("Marker ON/OFF")
+                    self.env.toggle_marker()
                 elif event.key == K_SPACE:
                     print("SPACE")
                     self.random_agent = not self.random_agent
