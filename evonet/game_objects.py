@@ -57,6 +57,73 @@ FIRE_OFF       = pygame.image.load(os.path.join(_DIR,'assets/fire_off.png')) #.c
 SHEEP          = pygame.image.load(os.path.join(_DIR,'assets/sheep.png')) #.convert()
 WOLF           = pygame.image.load(os.path.join(_DIR,'assets/wolf.png')) #.convert()
 
+SURVIVOR_STATISTICS = {
+
+            "basics" : {
+                "steps_alive" : 0,
+                "steps_water" : 0,
+                "steps_land"  : 0,
+                "collisions"  : 0,
+                "hits_from_wolf" : 0,
+                "blocked_sheep"  : 0,
+            },
+            "specialisation" : {
+                "steps_as_fireguard" : 0,
+                "steps_as_shepherd"  : 0,
+                "catched_wolf"   : 0,
+                "collected_food" : 0
+            },
+            "rewards" : {
+                "reward_from_fire"  : 0,
+                "reward_from_sheep" : 0,
+                "reward_from_wolf"  : 0,
+                "reward_from_food"  : 0,
+                "reward_total"      : 0
+            }
+        }
+
+SHEEP_STATISTICS = {
+
+            "basics" : {
+                "steps_total" : 0,
+                "steps_slow"  : 0,
+                "steps_fast"  : 0,
+                "collisions"  : 0
+            },
+            "specialisation" : {
+                "collected_food"  : 0,
+                "catched_by_wolf" : 0,
+                "steps_with_shepherd"    : 0,
+                "steps_without_shepherd" : 0,
+                "shepherd_switches" : 0
+            }
+        }
+
+WOLF_STATISTICS = {
+
+            "basics" : {
+                "steps_total" : 0,
+                "steps_slow"  : 0,
+                "steps_fast"  : 0,
+                "collisions"  : 0
+            },
+            "specialisation" : {
+                "steps_hunting" : 0,
+                "catched_sheep"  : 0,
+                "catched_by_survivor" : 0,
+                "attacked_survivor"   : 0
+            }
+        }
+
+FIRE_STATISTICS = {
+
+            "specialisation" : {
+                "steps_fire_on"   : 0,
+                "steps_fire_off"  : 0,
+                "fire_switches" : 0
+            }
+        }
+
 def create_marker_rect(Pos, TileSize, Offset, size_x=1, size_y=1):
         '''
         This method returns the grid point infront of the given position (depending on the orientation), as a scaled rectangle.
@@ -82,7 +149,10 @@ def create_marker_rect(Pos, TileSize, Offset, size_x=1, size_y=1):
 
 class GameObject():
 
-    def __init__(self, ID, start_pos, tile_size, offset, grid_size, actions, base_image=None, view_port=None):
+    def __init__(self, ID, start_pos, tile_size, offset, grid_size, actions, base_image=None, view_port=None, statistics_dict={}):
+
+        self.STATS = statistics_dict.copy()
+        self.Statistics = self.STATS.copy()
 
         self.ID = ID
         self.Pos     = np.array(start_pos)
@@ -157,7 +227,7 @@ class GameObject():
         self.Pos  = self.OldPos.copy()
         self.Grid = self.OldGrid
 
-    def update_render_pos(self, rotate=False, tile_map=None):
+    def update_render_pos(self, rotate=False, tile_map=None, dead=False):
         
         if rotate:
             self.image = pygame.transform.rotate(self.IMAGE, self.Pos[2] * -90)
@@ -170,9 +240,14 @@ class GameObject():
         if tile_map is not None:
             points = []
             for point in self.OldGrid:
-                if point not in self.Grid:
+                # if we are dead, return the tiles from the old position, else only those that are not part of the new grid
+                if dead:
                     points.append(point)
                     dirty_sprites.append(tile_map[point])
+                else:
+                    if point not in self.Grid:
+                        points.append(point)
+                        dirty_sprites.append(tile_map[point])
             #print("OLD: {}, NEW: {} REDRAW: {}".format(self.OldGrid, self.Grid, points))
         
         return tuple(dirty_sprites)
@@ -185,7 +260,10 @@ class GameObject():
         self.rect     = self.image.get_rect()
         self.reset(self.Pos)
 
-    def reset(self, new_pos):
+    def reset(self, new_pos, reset_stats=False):
+        
+        if reset_stats: self.Statistics = self.STATS.copy()
+        
         self.Pos = np.array(new_pos)
         self.OldPos = self.Pos.copy()
         self.Grid = self.update_collision_grid()
@@ -273,7 +351,8 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
 
         base_image = pygame.Surface([size, size])
         base_image.fill((255,0,0))
-        GameObject.__init__(self, ID, agent_start_pos, size, offset, (1,1), Survivor.BASIC_ACTIONS, base_image)
+
+        GameObject.__init__(self, ID, agent_start_pos, size, offset, (1,1), Survivor.BASIC_ACTIONS, base_image, None, SURVIVOR_STATISTICS)
 
         self.ViewPort = view_port
 
@@ -299,7 +378,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         # If survivor is dead return
         if self.Energy <= 0:
             self.kill()
-            return self.update_render_pos()
+            return self.update_render_pos(tile_map=tile_map, dead=True)
 
         # Apply the action and update the position
         action = action_list[self.ID]
@@ -369,6 +448,7 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
     def __init__(self, ID, pos, tile_size, offset=0, small=False):
         
         pygame.sprite.Sprite.__init__(self)
+
         if small:
             IMAGE_ON  = FIRE_ON_SMALL.conert()
             IMAGE_OFF = FIRE_OFF_SMALL.convert()
@@ -379,7 +459,7 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
             NUM_TILES = 4
 
         FireArea = ViewPort(3,3,3,3)
-        GameObject.__init__(self, ID, pos, tile_size, offset, (NUM_TILES, NUM_TILES), None, IMAGE_OFF, FireArea)
+        GameObject.__init__(self, ID, pos, tile_size, offset, (NUM_TILES, NUM_TILES), None, IMAGE_OFF, FireArea, FIRE_STATISTICS)
 
         # add a second Surface for the Fire ON image        
         self.BASE_IMAGE_2 = IMAGE_ON
@@ -456,7 +536,7 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
         pygame.sprite.Sprite.__init__(self)
 
         SheepArea = ViewPort(5,5,5,4)
-        GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert(), SheepArea)
+        GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Sheep.BASIC_ACTIONS, SHEEP.convert(), SheepArea, SHEEP_STATISTICS)
 
         self.SLOW = 6
         self.FAST = 2
@@ -572,7 +652,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
         pygame.sprite.Sprite.__init__(self)
 
         WolfArea = ViewPort(8,8,8,8)
-        GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea)
+        GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea, WOLF_STATISTICS)
         self.DMG = 50
         self.SLOW = 5
         self.FAST = 1
@@ -720,7 +800,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                         action = FORWARD
                     else:
                         action = STAY
-                        
+
         # If the Game is set to MANUAL or RANDOM mode overwrite the action
         if MANUAL:
             # Select the same action as player x for manuel play/testing
