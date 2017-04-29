@@ -397,41 +397,39 @@ class EvoWorld():
         # clear the drawing group
         self.dirty_sprites_group.empty()
 
-        # update only living agents
-        living_agents = self.survivor_group.sprites()
-        game_objects  = self.game_objects_group.sprites()
+        ###############################################################################
+        # UPDATE the game state
+        ###############################################################################   
 
-        for agent in living_agents:
+        # update (living) agents first
+        for agent in self.survivor_group.sprites():
 
+            # get all "living" game objects
             game_objects  = self.game_objects_group.sprites()
 
-            #dirty_sprites = agent.update(action_list, self.TileMap, game_objects, living_agents)
+            # update the agent and add dirty sprites to the redraw group
             dirty_sprites = agent.update(action_list, self.TileMap, game_objects)
             self.dirty_sprites_group.add(dirty_sprites)
 
-        # update all game objects
-        #living_agents = self.survivor_group.sprites()
-        #game_objects  = self.game_objects_group.sprites()
-
-       # for game_object in game_objects:
+        # update npcs second
         for npc in self.npc_group:
+
+            # get all "living" game objects
             game_objects  = self.game_objects_group.sprites()
 
-          #  dirty_sprites = game_object.update(action_list, self.TileMap, game_objects, living_agents)
+            # update the NPC and add dirty sprites to the redraw group
             dirty_sprites = npc.update(action_list, self.TileMap, game_objects)
             self.dirty_sprites_group.add(dirty_sprites)
 
-        #self.game_objects_group.update()
         ###############################################################################
-        # DRAW the important Stuff to generat the AgentViews: Needed always! training
+        # DRAW the important stuff that is necessary to generate the agents observation
         ###############################################################################     
-        # Draw game objects AFTER bord objects so they are always visible
-
-        # Draw the current map
+        
+        # Draw the dirty map sprites
         #self.bord_objects_group.draw(self.MapSurface)
         self.dirty_sprites_group.draw(self.MapSurface)
 
-        # Draw Enemies etc.
+         # Draw the "living" game objects AFTER the map to ensure that they are always visible
         self.game_objects_group.draw(self.MapSurface)
 
         # Update the Agent Views

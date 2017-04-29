@@ -26,7 +26,7 @@ class EvoNet(PyGameWrapper):
     MAP_CARDS      = 1
     MAP_MINI_CARDS = 2
 
-    def __init__(self, grid_width=52, grid_height=52, tile_size=8, water_percentage=0.5, 
+    def __init__(self, grid_width=50, grid_height=50, tile_size=8, water_percentage=0.5, 
                  num_agents=2, always_new_map=False, view_port_dimensions={}):
 
         print("Welcome to EvoNet - survival mode")
@@ -51,8 +51,8 @@ class EvoNet(PyGameWrapper):
         }
 
 
-        self.Grid_Width  = grid_width
-        self.Grid_Height = grid_height
+        self.Grid_Width  = grid_width  + 2 # Plus 2 for the border
+        self.Grid_Height = grid_height + 2 # Plus 2 for the border
         self.TileSize    = tile_size
         self.WATER_PERCENTAGE = water_percentage
         self.NUM_AGENTS = num_agents
@@ -64,7 +64,7 @@ class EvoNet(PyGameWrapper):
         self.PlayTime = 0
         self.ActivePlayer = 0
 
-        PyGameWrapper.__init__(self, grid_width * self.TileSize, grid_height * self.TileSize, actions=self.ACTIONS)
+        PyGameWrapper.__init__(self, self.Grid_Width * self.TileSize, self.Grid_Height * self.TileSize, actions=self.ACTIONS)
 
         self.rewards = {
             "positive":  1.0, # same as pygamewrapper
