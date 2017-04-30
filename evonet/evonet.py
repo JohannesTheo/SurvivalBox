@@ -173,7 +173,7 @@ class EvoNet(PyGameWrapper):
         """
         return self.clock.tick_busy_loop(fps)
     '''
-    '''
+    
     def adjustRewards(self, rewards):
         """
 
@@ -188,7 +188,9 @@ class EvoNet(PyGameWrapper):
         for key in rewards.keys():
             if key in self.rewards:
                 self.rewards[key] = rewards[key]
-    '''
+
+        if self.env.StatisticsCard is not None:
+            self.env.StatisticsCard.update_static()
     '''
     def setRNG(self, rng):
         """
