@@ -182,18 +182,21 @@ class Card(pygame.Surface):
         ending_at_y = TitleBottom + self.margin_in
         return ending_at_y
 
+    def reset(self, active=False):
+        self.update_static(active)
+
 class AgentCard(Card):
 
-    def __init__(self, agent_entry, map_dimensions, tile_size):
+    def __init__(self, agent_entry, map_dimension_y, tile_size, basic=True, detail=True, observation=True):
 
 
-        self.BASIC_INFO  = True
-        self.DETAIL_INFO = True
-        self.OBSERVATION = True
+        self.BASIC_INFO  = basic
+        self.DETAIL_INFO = detail
+        self.OBSERVATION = observation
 
         # Calculate the total size of the card to init base class
         self.FIX_TILE_SIZE = 8
-        self.MAP_H = map_dimensions * self.FIX_TILE_SIZE
+        self.MAP_H = map_dimension_y * self.FIX_TILE_SIZE
 
 
         if tile_size == self.FIX_TILE_SIZE:
@@ -241,6 +244,7 @@ class AgentCard(Card):
 
         # Reasign our Agent View because its
         self.AgentView  = self.AgentEntry["AgentView"]
+        self.Statistics = self.Agent.Statistics
 
         next_x = 0
         next_y = self.VIEW_Y
