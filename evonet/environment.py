@@ -21,7 +21,7 @@ class EvoWorld():
     can render the World State as well as the Agent Views
     '''
     def __init__(self, map_width, map_height, water_percentage, init_tile_size, rewards):
-        
+
         self.MAPWIDTH = map_width
         self.MAPHEIGHT = map_height
         self.WATER_PERCENTAGE = water_percentage
@@ -52,13 +52,14 @@ class EvoWorld():
         self.NPC_List  = []
         self.CardList  = {}
         self.StatisticsCard = None
-        self.CARD_MARGIN = 30 
+        self.CARD_MARGIN = 10
         self.rng = None
         self.ActivePlayer = 0
 
         self.DRAW_VIEW_AREAS = False
         self.DRAW_MARKER = False
-        
+        self.RENDER_CARDS       = True
+        self.RENDER_SCALED_MAP  = True
 
         # Some helpful sprite groups which we can use for drawing and collison detection
         self.everything_group       = pygame.sprite.RenderUpdates()
@@ -200,6 +201,8 @@ class EvoWorld():
     def create_cards(self):
         self.CardList = {}
         self.StatisticsCard = None
+
+        #if self.RENDER_CARDS:
         
         for agent in self.AgentList:
             ID = self.AgentList[agent]["ID"]
@@ -279,7 +282,7 @@ class EvoWorld():
 
             # find a position that is no blocked by another GameObject
             new_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites())
-            agent.reset(new_pos)
+            agent.reset(new_pos, reset_stats=True)
 
             self.everything_group.add(agent)
             self.game_objects_group.add(agent)
@@ -289,7 +292,7 @@ class EvoWorld():
 
             # find a position that is no blocked by another GameObject
             new_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites(), forbidden_types=[map.WATER], min_space=NPC.GRID_MAX)
-            NPC.reset(new_pos)
+            NPC.reset(new_pos, reset_stats=True)
 
             self.everything_group.add(NPC)
             self.game_objects_group.add(NPC)
@@ -300,57 +303,79 @@ class EvoWorld():
         self.everything_group.draw(self.MapSurface)
         self.update_agent_views()
 
-        
+        self.reset_cards()
+
+        #self.create_cards()
+
+    def reset_cards(self):
+        for card in self.CardList:
+            active = (card == self.ActivePlayer)
+            self.CardList[card].reset(active)
+         #   self.CardList[card].update(active)
+
+        if self.StatisticsCard is not None:
+            self.StatisticsCard.reset()
+
     def toggle_view_area(self):
         self.DRAW_VIEW_AREAS = not self.DRAW_VIEW_AREAS
 
     def toggle_marker(self):
         self.DRAW_MARKER = not self.DRAW_MARKER
 
+    def toggle_cards(self):
+        self.RENDER_CARDS = not self.RENDER_CARDS
+
+        #if self.RENDER_CARDS:
+         #   self.create_cards()
+
+    def toggle_scaled_map(self):
+        self.RENDER_SCALED_MAP  = not self.RENDER_SCALED_MAP
+
     def get_screen_dimensions(self):
 
         # size of the normal map
         width  = self.MapSurface.get_width()
         height = self.MapSurface.get_height()
-
-        # size of the scaled map
         ClippingBorder = self.ClippingBorder   
-        if(self.TileSize < 8):
-            ClippingBorder = (self.MAX_VIEW_PORT - 1) * 8
-            w = (self.MAPWIDTH  * 8)
-            h = (self.MAPHEIGHT * 8)
-            width = w
-            height += h
-            height += (ClippingBorder - self.ClippingBorder)
-            width  += 2 * ClippingBorder 
 
-        height += 2 * ClippingBorder
+        if self.RENDER_SCALED_MAP:
+            # size of the scaled map
+            if(self.TileSize < 8):
+                ClippingBorder = (self.MAX_VIEW_PORT - 1) * 8
+                w = (self.MAPWIDTH  * 8)
+                h = (self.MAPHEIGHT * 8)
+                width = w + 2 * ClippingBorder
+                height += h + 2 * ClippingBorder + (ClippingBorder - self.ClippingBorder)
 
-        # starting points of the card calculations
-        card_start_w = width
-        card_start_h = ClippingBorder
-        agent_card_h = 0
-        for card in self.CardList:
-            # alawys add the width
-            width += self.CardList[card].get_width()
-            width += self.CARD_MARGIN
+        if self.RENDER_CARDS:
+            # starting points of the card calculations
+            card_start_w = width
+            card_start_h = ClippingBorder
+            agent_card_h = 0
 
-            # add height only of it is more than the current height
-            agent_card_h = self.CardList[card].get_height()
-            card_h =  agent_card_h + 2 * ClippingBorder
-            if card_h >= height:
-                height = card_h
+            for card in self.CardList:
 
-        if self.StatisticsCard is not None:
-            card_w = card_start_w + self.StatisticsCard.get_width() + ClippingBorder
-            if card_w > width:
-                width = card_w
+                # alawys add the width
+                width += self.CardList[card].get_width()
+                width += self.CARD_MARGIN
 
-            card_h = ClippingBorder + agent_card_h + self.CARD_MARGIN + self.StatisticsCard.get_height() + ClippingBorder
-            if card_h >= height:
-                height = card_h #+ 2 * self.ClippingBorder
+                # add height only of it is more than the current height
+                agent_card_h = self.CardList[card].get_height()
+                card_h =  agent_card_h + 2 * ClippingBorder
+                if card_h >= height:
+                    height = card_h
 
-          #  self.ClippingBorder + agent_card + selfheight + 30 + 30
+            if self.StatisticsCard is not None:
+                card_w = card_start_w + self.StatisticsCard.get_width() + self.CARD_MARGIN
+                if card_w > width:
+                    width = card_w - self.StatisticsCard.margin_out
+
+                card_h = ClippingBorder + agent_card_h + 3 * self.CARD_MARGIN + self.StatisticsCard.get_height() + ClippingBorder
+                if card_h >= height:
+                    height = card_h #+ 2 * self.ClippingBorder
+
+              #  self.ClippingBorder + agent_card + selfheight + 30 + 30
+            width += ClippingBorder - self.CARD_MARGIN
 
         return (width, height)
 
@@ -477,20 +502,23 @@ class EvoWorld():
 
         # Draw the a 'human friendly' version of the game
         if(self.TileSize < 8):
-            huge_w, huge_h, huge_offset = self.draw_huge_map(screen)
-            self.draw_normal_map(screen, huge_offset - self.ClippingBorder, huge_h)
-            self.draw_cards(screen, huge_w, huge_offset)
 
+            if self.RENDER_SCALED_MAP:
+                huge_w, huge_h, huge_offset = self.draw_huge_map(screen)
+                self.draw_normal_map(screen, huge_offset - self.ClippingBorder, huge_h)
+                self.draw_cards(screen, huge_w, huge_offset)
+            else:
+                w, h, offset = self.draw_normal_map(screen, 0,0)
+                self.draw_cards(screen, w, offset)
         else:
             w,h,offset = self.draw_normal_map(screen, 0,0)
             self.draw_cards(screen, w, offset)
-
 
     def draw_cards(self, screen, offset_x, offset_y):
             margin = self.CARD_MARGIN # margin between Cards
 
             card_off = 0
-            margin = 0
+            margin = self.CARD_MARGIN
             for card in self.CardList:
                 # limit the amount of cards:
                 if card > 11: break
@@ -500,18 +528,19 @@ class EvoWorld():
                 self.CardList[card].update(active)
                 # calculate position
                 x = offset_x + (self.CardList[card].get_width() * (card%6)) + ((card%6) * margin)
+              #  print(card%6, margin)
                 y = offset_y
                 card_off = y + self.CardList[card].get_height() 
-                margin = self.CardList[card].margin_out
+               # margin = self.CardList[card].margin_out
 
                 if card > 5:
                     y += self.CardList[card].get_height() + self.CARD_MARGIN
                 # draw the card
                 screen.blit(self.CardList[card], (x,y))
 
-            self.StatisticsCard.update(self.NPC_List)
-            screen.blit(self.StatisticsCard, (offset_x, card_off + self.CARD_MARGIN))
-
+            if self.StatisticsCard is not None:
+                self.StatisticsCard.update(self.NPC_List)
+                screen.blit(self.StatisticsCard, (offset_x, card_off + 3 * self.CARD_MARGIN))
 
     def draw_huge_map(self, screen):
         
