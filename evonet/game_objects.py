@@ -2,6 +2,7 @@ __author__ = 'Johannes Theodoridis'
 
 # standard imports
 import os
+import copy
 
 # third party imports
 import numpy as np
@@ -63,13 +64,13 @@ SURVIVOR_STATISTICS = {
                 "steps_alive" : 0,
                 "steps_water" : 0,
                 "steps_land"  : 0,
-                "collisions"  : 0,
-                "hits_from_wolf" : 0,
-                "blocked_sheep"  : 0,
+                "collisions"  : 0
             },
             "specialisation" : {
                 "steps_as_fireguard" : 0,
                 "steps_as_shepherd"  : 0,
+                "blocked_sheep"  : 0,
+                "hits_from_wolf" : 0,
                 "catched_wolf"   : 0,
                 "collected_food" : 0
             },
@@ -151,8 +152,8 @@ class GameObject():
 
     def __init__(self, ID, start_pos, tile_size, offset, grid_size, actions, base_image=None, view_port=None, statistics_dict={}):
 
-        self.STATS = statistics_dict.copy()
-        self.Statistics = self.STATS.copy()
+        self.STATS = copy.deepcopy(statistics_dict) #.copy()
+        self.Statistics = copy.deepcopy(self.STATS.copy) #()
 
         self.ID = ID
         self.Pos     = np.array(start_pos)
@@ -262,7 +263,7 @@ class GameObject():
 
     def reset(self, new_pos, reset_stats=False):
         
-        if reset_stats: self.Statistics = self.STATS.copy()
+        if reset_stats: self.Statistics = copy.deepcopy(self.STATS) #.copy()
         
         self.Pos = np.array(new_pos)
         self.OldPos = self.Pos.copy()
@@ -379,6 +380,8 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         if self.Energy <= 0:
             self.kill()
             return self.update_render_pos(tile_map=tile_map, dead=True)
+        
+        self.Statistics["basics"]["steps_alive"] +=1
 
         # Apply the action and update the position
         action = action_list[self.ID]
@@ -392,6 +395,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
             
             if colliding_map_tile.TileType == map.EOW:
                 self.set_back()
+                self.Statistics["basics"]["collisions"] +=1
                 break
 
             for creature in living_creatures:
@@ -400,6 +404,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                     if isinstance(creature, Survivor):
                         if self.ID != creature.ID:
                             self.set_back()
+                            self.Statistics["basics"]["collisions"] +=1
                             break
 
                     elif isinstance(creature, Wolf):
@@ -415,9 +420,15 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                         # Find a new random position for the wolf and reset
                         new_pos = utils.free_random_position( tile_map, living_creatures, forbidden_types=[map.WATER], min_space=creature.GRID_MAX)
                         creature.reset(new_pos)
+
+                        creature.Statistics["specialisation"]["catched_by_survivor"] +=1
+                        self.Statistics["specialisation"]["catched_wolf"] +=1
+                        self.Statistics["rewards"]["reward_from_wolf"] += self.rewards["wolf"]
+                        self.Statistics["rewards"]["reward_total"] = self.Score
                         break
                     else:
                         self.set_back()
+                        self.Statistics["basics"]["collisions"] +=1
                         break
 
         # Now that we have the final position update the map on this position
@@ -426,8 +437,10 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
 
             if colliding_map_tile.TileType == map.WATER:
                 self.CostMultiplier = Survivor.COST_MULT_WATER
+                self.Statistics["basics"]["steps_water"] +=1
             else:
                 self.CostMultiplier = Survivor.COST_MULT_LAND
+                self.Statistics["basics"]["steps_land"] +=1
 
             colliding_map_tile.update(self)
 
@@ -436,12 +449,12 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         # Return all sprites that need redrawing
         return self.update_render_pos(tile_map=tile_map)
 
-    def reset(self, new_pos):
+    def reset(self, new_pos, reset_stats=False):
 
         self.Energy = self._O_ENERGY
         self.Score = 0
         self.CostMultiplier = 1
-        super(Survivor, self).reset(new_pos)
+        super(Survivor, self).reset(new_pos, reset_stats)
  
 class Fireplace(pygame.sprite.DirtySprite, GameObject):
 
@@ -483,6 +496,10 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
                     if (self.FIRE_GUARD == -1) or (self.FIRE_GUARD == creature.ID):
                         self.FIRE_GUARD = creature.ID
                         creature.Score += creature.rewards["fire"]
+                        creature.Statistics["specialisation"]["steps_as_fireguard"] +=1
+                        creature.Statistics["rewards"]["reward_from_fire"] += creature.rewards["fire"]
+                        creature.Statistics["rewards"]["reward_total"] = creature.Score
+
                         self.ON = True
                         #print("FIRE  // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["wolf"], agent.Score))
 
@@ -503,8 +520,11 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
 
         # Switch the image based on the fire status
         if self.ON:
+            self.Statistics["specialisation"]["steps_fire_on"] +=1
             self.image = self.IMAGE_2 # Fire on
         else:
+            self.Statistics["specialisation"]["steps_fire_off"] +=1
+            #self.Statistics["specialisation"]["fire_switches"] +=1
             self.FIRE_GUARD = -1
             self.image = self.IMAGE   # Fire off
         
@@ -515,11 +535,11 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
         self.IMAGE_2  = pygame.transform.scale(self.BASE_IMAGE_2, (tile_size * self.GRID_W, tile_size * self.GRID_H))
         super(Fireplace, self).scale_to(tile_size, offset)
     
-    def reset(self, new_pos):
+    def reset(self, new_pos, reset_stats=False):
         self.test = 0
         self.ON = False
         self.FIRE_GUARD = -1
-        super(Fireplace, self).reset(new_pos)
+        super(Fireplace, self).reset(new_pos, reset_stats)
 
 class Sheep(pygame.sprite.DirtySprite, GameObject):
 
@@ -545,7 +565,7 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
         self.SHEPHERD = -1 # only one agent can be the sheeps shepherd at the same time. First come, first serve!
 
     def update(self, manual_actions, tile_map,  living_creatures):
-        
+
         # increment the WorldSteps
         self.WorldSteps += 1
 
@@ -561,11 +581,13 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
             
             if colliding_map_tile.TileType == map.EOW:
                 self.set_back()
+                self.Statistics["basics"]["collisions"] +=1
                 break
 
             if colliding_map_tile.TileType == map.WATER:
                 self.set_back()
                 self.move(TURN_F)
+                self.Statistics["basics"]["collisions"] +=1
                 break
 
             # The Sheep is blocked by every other creature
@@ -575,14 +597,21 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                     if isinstance(creature, Sheep):
                         if self.ID != creature.ID:
                             self.set_back()
+                            self.Statistics["basics"]["collisions"] +=1
                             break
+                    elif isinstance(creature, Survivor):
+                        self.set_back()
+                        self.Statistics["basics"]["collisions"] +=1
+                        creature.Statistics["specialisation"]["blocked_sheep"] +=1
+                        break
                     else:                   
                         self.set_back()
+                        self.Statistics["basics"]["collisions"] +=1
                         break
 
         # Now that we have the final position update the map on this position
         for point in self.Grid:
-            tile_map[point].update()
+            tile_map[point].update(self)
 
         # With the final position search for shepherds
         has_a_shepherd = False
@@ -598,19 +627,34 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                         self.SHEPHERD = creature.ID
                         creature.Score += creature.rewards["sheep"]
                         has_a_shepherd = True
+
+                        creature.Statistics["specialisation"]["steps_as_shepherd"] +=1
+                        creature.Statistics["rewards"]["reward_from_sheep"] += creature.rewards["sheep"]
+                        creature.Statistics["rewards"]["reward_total"] = creature.Score
+                        self.Statistics["specialisation"]["steps_with_shepherd"] +=1
+                
                         #print("SHEEP // Agent {}: +{} new score: {}".format(creature.ID, creature.rewards["sheep"], creature.Score))
 
         # If there was no survivor in range, reset the sheeps "ownership"
         if not has_a_shepherd:
             self.SHEPHERD = -1
+            self.Statistics["specialisation"]["steps_without_shepherd"] +=1
+            #self.Statistics["specialisation"]["shepherd_switches"] +=1
         
         # Return all sprites that need redrawing
         return self.update_render_pos(rotate=True, tile_map=tile_map)
 
     def select_move(self, manual_actions=[]):
 
+            if self.MOVE_EVERY_N_STEPS == self.SLOW:
+                self.Statistics["basics"]["steps_slow"] +=1
+            elif self.MOVE_EVERY_N_STEPS == self.FAST:
+                self.Statistics["basics"]["steps_slow"] +=1
+
             # The basic movement of the Sheep. Every n world steps select a move with some probability.
             if (self.WorldSteps % self.MOVE_EVERY_N_STEPS == 0):
+                self.Statistics["basics"]["steps_total"] +=1
+
                 action_prob = np.random.random()
                 if action_prob < 0.1:
                     action = TURN_L
@@ -682,11 +726,13 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
             
             if colliding_map_tile.TileType == map.EOW:
                 self.set_back()
+                self.Statistics["basics"]["collisions"] +=1
                 break
 
             if colliding_map_tile.TileType == map.WATER:
                 self.set_back()
                 self.move(TURN_F)
+                self.Statistics["basics"]["collisions"] +=1
 
                 if HUNTING:
                     # attempt another move to better escape from "trapped" situatios
@@ -699,6 +745,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
 
                         if new_map_tile.TileType == map.WATER or new_map_tile.TileType == map.EOW:
                             self.set_back()
+                            self.Statistics["basics"]["collisions"] +=1
                             break
                         
                         sheep = self.check_object_collisions(new_point, tile_map, living_creatures)
@@ -722,6 +769,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                 if isinstance(creature, Wolf):
                     if self.ID != creature.ID:
                         self.set_back()
+                        self.Statistics["basics"]["collisions"] +=1
                         break
 
                 elif isinstance(creature, Sheep):
@@ -733,6 +781,10 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                         # Find a new random position for the sheep and reset
                         new_pos = utils.free_random_position( tile_map, living_creatures, forbidden_types=[map.WATER], min_space=creature.GRID_MAX)
                         creature.reset(new_pos)
+
+                        self.Statistics["specialisation"]["catched_sheep"] +=1
+                        creature.Statistics["specialisation"]["catched_by_wolf"] +=1
+
                         #creature.kill()
                         break
 
@@ -741,6 +793,9 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                     # Apply the attack damage of the wolf to the survivor, reset position
                     creature.Energy -= self.DMG
                     self.set_back()
+                    self.Statistics["specialisation"]["attacked_survivor"] +=1
+                    creature.Statistics["specialisation"]["hits_from_wolf"] +=1
+
                     print("WOLF attacks Agent {} -{} dmg, new energy: {}!".format(creature.ID, self.DMG, creature.Energy))
                     break
                 else:
@@ -780,15 +835,23 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
 
     def select_move(self, hunting, victim_pos, manual_actions=[]):
 
+
+        if self.MOVE_EVERY_N_STEPS == self.SLOW:
+            self.Statistics["basics"]["steps_slow"] +=1
+        elif self.MOVE_EVERY_N_STEPS == self.FAST:
+            self.Statistics["basics"]["steps_slow"] +=1
+
         action = STAY
         # The basic movement of the Wolf. Every n world steps select a move with some probability.
         if (self.WorldSteps % self.MOVE_EVERY_N_STEPS == 0):
+            self.Statistics["basics"]["steps_total"] +=1
 
             # If the wolf is in hunting mode, select a special move, else one of the basic moves.
             if hunting:
                 wolf  = self.get_grid_pos()
                 sheep = victim_pos
                 action   = self.select_hunt_move(hunter_pos=wolf, victim_pos=sheep)
+                self.Statistics["specialisation"]["steps_hunting"] +=1
             else:
                 
                     action_prob = np.random.random()
