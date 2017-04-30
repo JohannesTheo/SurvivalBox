@@ -240,12 +240,16 @@ class GameObject():
         dirty_sprites = []
         if tile_map is not None:
             points = []
-            for point in self.OldGrid:
-                # if we are dead, return the tiles from the old position, else only those that are not part of the new grid
-                if dead:
+
+            if dead:
+                for point in self.OldGrid:
                     points.append(point)
                     dirty_sprites.append(tile_map[point])
-                else:
+                for point in self.Grid:
+                    points.append(point)
+                    dirty_sprites.append(tile_map[point])
+            else:
+                for point in self.OldGrid:
                     if point not in self.Grid:
                         points.append(point)
                         dirty_sprites.append(tile_map[point])
@@ -380,7 +384,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         if self.Energy <= 0:
             self.kill()
             return self.update_render_pos(tile_map=tile_map, dead=True)
-        
+
         self.Statistics["basics"]["steps_alive"] +=1
 
         # Apply the action and update the position
