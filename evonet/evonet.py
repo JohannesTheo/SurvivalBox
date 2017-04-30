@@ -294,7 +294,10 @@ class EvoNet(PyGameWrapper):
         #if(tile_size <= 0 or (tile_size*self.Grid_Height) > 1920): return
         self.TileSize = tile_size
         self.env.scale_to(self.TileSize)
-
+        self.reset_screen()
+        
+    def reset_screen(self):
+        #self.screen.fill((0,0,0))
         self.screen_dim = self.env.get_screen_dimensions()
         self.screen = pygame.display.set_mode(self.getScreenDims(), 0, 32)
 
@@ -345,6 +348,14 @@ class EvoNet(PyGameWrapper):
                 elif event.key == K_4:
                     print("Marker ON/OFF")
                     self.env.toggle_marker()
+                elif event.key == K_5:
+                    print("Scaled Map ON/OFF")
+                    self.env.toggle_scaled_map()
+                    self.reset_screen()
+                elif event.key == K_6:
+                    print("Cards ON/OFF")
+                    self.env.toggle_cards()
+                    self.reset_screen()
                 elif event.key == K_SPACE:
                     print("SPACE")
                     self.random_agent = not self.random_agent
