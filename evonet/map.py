@@ -9,6 +9,7 @@ import pygame
 
 # local imports
 from .utils import ValueNoise2D
+from .game_objects import Survivor, Sheep
 
 # constans representing the different ressources
 PLAYER = -1
@@ -193,16 +194,23 @@ class Tile(pygame.sprite.DirtySprite):
         self.rect.x = self.Pos_x * self.TileSize + self.Offset
         self.rect.y = self.Pos_y * self.TileSize + self.Offset
 
-    def update(self, agent=None):
+    def update(self, creature=None):
 
-        #print(self.TileType)
         # update is equivalent to act
         self.FoodValue -= 100
 
         if self.FoodValue <= 0 and self.TileType == GRASS:
-            if agent is not None:
-                agent.Score += agent.rewards["grass"]
-               # print("GRASS // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["grass"], agent.Score))
+            if creature is not None:
+
+                if isinstance(creature, Survivor):
+                    creature.Score += creature.rewards["grass"]
+                    creature.Statistics["specialisation"]["collected_food"] +=1
+                    creature.Statistics["rewards"]["reward_from_food"] += creature.rewards["grass"]
+                    creature.Statistics["rewards"]["reward_total"] = creature.Score
+                    # print("GRASS // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["grass"], agent.Score))
+                elif isinstance(creature, Sheep):
+                    creature.Statistics["specialisation"]["collected_food"] +=1
+
             self.FoodValue = 0
             self.TileType = MUD
             self.scale_to(self.TileSize, self.Offset)
