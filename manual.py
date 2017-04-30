@@ -10,8 +10,8 @@ agent_view_port = {
                     "grid_points_back" : 10,
                   }
 
-game = EvoNet(grid_width =52, 
-              grid_height=52,
+game = EvoNet(grid_width =50, 
+              grid_height=50,
               tile_size=4, 
               water_percentage=0.5, 
               num_agents=2,

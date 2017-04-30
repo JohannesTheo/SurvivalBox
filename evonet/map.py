@@ -202,7 +202,7 @@ class Tile(pygame.sprite.DirtySprite):
         if self.FoodValue <= 0 and self.TileType == GRASS:
             if agent is not None:
                 agent.Score += agent.rewards["grass"]
-                print("GRASS // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["grass"], agent.Score))
+               # print("GRASS // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["grass"], agent.Score))
             self.FoodValue = 0
             self.TileType = MUD
             self.scale_to(self.TileSize, self.Offset)
