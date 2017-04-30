@@ -202,15 +202,15 @@ class EvoWorld():
         self.CardList = {}
         self.StatisticsCard = None
 
-        #if self.RENDER_CARDS:
+        if self.RENDER_CARDS:
         
-        for agent in self.AgentList:
-            ID = self.AgentList[agent]["ID"]
-            self.CardList[ID] = AgentCard(self.AgentList[agent],
-                                          self.MAPHEIGHT, 
-                                          self.TileSize)
+            for agent in self.AgentList:
+                ID = self.AgentList[agent]["ID"]
+                self.CardList[ID] = AgentCard(self.AgentList[agent],
+                                              self.MAPHEIGHT, 
+                                              self.TileSize)
 
-        self.StatisticsCard = StatisticsCard(self.START_MAP["Stats"], self.START_MAP["Meta"], self.NPC_List, self.rewards)
+            self.StatisticsCard = StatisticsCard(self.START_MAP["Stats"], self.START_MAP["Meta"], self.NPC_List, self.rewards)
 
     def create_new_map(self, loaded_map=None):
         
@@ -302,10 +302,7 @@ class EvoWorld():
         # redraw everything to have a "clean" screen and update the agent views
         self.everything_group.draw(self.MapSurface)
         self.update_agent_views()
-
         self.reset_cards()
-
-        #self.create_cards()
 
     def reset_cards(self):
         for card in self.CardList:
@@ -324,9 +321,7 @@ class EvoWorld():
 
     def toggle_cards(self):
         self.RENDER_CARDS = not self.RENDER_CARDS
-
-        #if self.RENDER_CARDS:
-         #   self.create_cards()
+        self.create_cards()
 
     def toggle_scaled_map(self):
         self.RENDER_SCALED_MAP  = not self.RENDER_SCALED_MAP
