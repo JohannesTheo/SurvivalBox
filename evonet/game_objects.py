@@ -334,9 +334,9 @@ class ViewPort(pygame.Rect):
 
 class Survivor(pygame.sprite.DirtySprite, GameObject):
     # cost constants (game dynamics)
-    COST_PERMANENT = 1.
-    COST_MOVE = 5.
-    COST_ROTATE = 5.
+    #COST_PERMANENT = 1.
+    #COST_MOVE = 5.
+    #COST_ROTATE = 5.
     COST_MULT_LAND = 1
     COST_MULT_WATER = 3
     
@@ -362,12 +362,13 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         self.ViewPort = view_port
 
         # dynamics
-        self.Energy = 3000.
+        self.Energy = 300.
         self._O_ENERGY = self.Energy
         self.CostMultiplier = 1
         # rewards
         self.rewards = rewards
         self.Score = 0
+        self.StepsAlive = 0
 
     def draw_as_ally(self, Surface):
         pygame.draw.rect(Surface, (0,0,255) ,self.rect)
@@ -385,6 +386,8 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
             self.kill()
             return self.update_render_pos(tile_map=tile_map, dead=True)
 
+        self.StepsAlive += 1
+        #print("Agent {}: steps {}".format(self.ID, self.StepsAlive))
         self.Statistics["basics"]["steps_alive"] +=1
 
         # Apply the action and update the position
@@ -416,6 +419,14 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                         
                         # Apply the reward
                         self.Score += self.rewards["wolf"]
+
+                        for survivor in living_creatures:
+                            if isinstance(survivor, Survivor):
+                                survivor.Energy += (creature.StepsAlive * 0.25)
+
+                        print("ENERGY FROM WOLF: {}".format(creature.StepsAlive * 0.25))
+                        creature.StepsAlive = 0
+
                         print("WOLF  // Agent {}: +{} new score: {}".format(self.ID, self.rewards["wolf"], self.Score))
                         
                         # Save the wolfs position for redrawing later
@@ -446,7 +457,11 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                 self.CostMultiplier = Survivor.COST_MULT_LAND
                 self.Statistics["basics"]["steps_land"] +=1
 
-            colliding_map_tile.update(self)
+            collected_food = colliding_map_tile.update(self)
+            if collected_food:
+                for creature in living_creatures:
+                    if isinstance(creature, Survivor):
+                        creature.Energy += 0.25
 
         # Add the sprites points from the dead wolf to our self.OldGrid for redrawing!
         self.OldGrid += dead_wolf_sprites
@@ -457,6 +472,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
 
         self.Energy = self._O_ENERGY
         self.Score = 0
+        self.StepsAlive = 0
         self.CostMultiplier = 1
         super(Survivor, self).reset(new_pos, reset_stats)
  
@@ -484,7 +500,7 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
 
         self.ON = False
         self.FIRE_GUARD = -1 # only one agent can be the fire guard at the same time. First come, first serve!
-        self.test = 0
+       # self.test = 0
 
     def update(self, actions, tile_map,  living_creatures):
 
@@ -508,8 +524,11 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
                         #print("FIRE  // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["wolf"], agent.Score))
 
 
-        # Switch the Wolf and Sheep Movement Speed depending on the fire status
+        # Switch the Wolf and Sheep Movement Speed depending on the fire status and add Energy to the agents!
         for creature in living_creatures:
+            if isinstance(creature, Survivor):
+                if self.ON:
+                    creature.Energy += 0.25
             if isinstance(creature, Wolf):
                 if self.ON:
                     creature.MOVE_EVERY_N_STEPS = creature.SLOW
@@ -540,7 +559,7 @@ class Fireplace(pygame.sprite.DirtySprite, GameObject):
         super(Fireplace, self).scale_to(tile_size, offset)
     
     def reset(self, new_pos, reset_stats=False):
-        self.test = 0
+        #self.test = 0
         self.ON = False
         self.FIRE_GUARD = -1
         super(Fireplace, self).reset(new_pos, reset_stats)
@@ -577,7 +596,7 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
         action = self.select_move(manual_actions)
 
         # apply the chosen action
-        self.move(action)
+        #self.move(action)
     
         # Check collisions and set the final position
         for point in self.Grid:
@@ -640,7 +659,11 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                         #print("SHEEP // Agent {}: +{} new score: {}".format(creature.ID, creature.rewards["sheep"], creature.Score))
 
         # If there was no survivor in range, reset the sheeps "ownership"
-        if not has_a_shepherd:
+        if has_a_shepherd:
+            for creature in living_creatures:
+                if isinstance(creature, Survivor):
+                    creature.Energy += 0.25
+        elif not has_a_shepherd:
             self.SHEPHERD = -1
             self.Statistics["specialisation"]["steps_without_shepherd"] +=1
             #self.Statistics["specialisation"]["shepherd_switches"] +=1
@@ -702,18 +725,20 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
         WolfArea = ViewPort(8,8,8,8)
         GameObject.__init__(self, ID, start_pos, tile_size, offset, (1,2), Wolf.BASIC_ACTIONS, WOLF.convert(), WolfArea, WOLF_STATISTICS)
         self.DMG = 50
-        self.SLOW = 5
+        self.SLOW = 4
         self.FAST = 1
         self.MOVE_EVERY_N_STEPS = self.FAST
         self.WorldSteps = 0
+        self.StepsAlive = 0
 
     def update(self, manual_actions, tile_map,  living_creatures):
 
         # increment the WorldSteps
         self.WorldSteps += 1
+        self.StepsAlive += 1
+        #print("Wolf is {} Steps alive.".format(self.StepsAlive))
 
         # Check if a sheep is in the hunting range
-
         HUNTING, SheepPos = self.snoop(living_creatures)
 
         # select an action
@@ -917,3 +942,9 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                 elif self.Pos[2] == RIGHT: return TURN_R                  
                 elif self.Pos[2] == LEFT:  return TURN_L
                 else: return Wolf.STAY
+
+    def reset(self, new_pos, reset_stats=False):
+        self.WorldSteps = 0
+        self.StepsAlive = 0
+        super(Wolf, self).reset(new_pos, reset_stats)
+        

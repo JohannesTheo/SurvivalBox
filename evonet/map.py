@@ -200,6 +200,10 @@ class Tile(pygame.sprite.DirtySprite):
         self.FoodValue -= 100
 
         if self.FoodValue <= 0 and self.TileType == GRASS:
+            self.FoodValue = 0
+            self.TileType = MUD
+            self.scale_to(self.TileSize, self.Offset)
+
             if creature is not None:
 
                 if isinstance(creature, Survivor):
@@ -210,10 +214,12 @@ class Tile(pygame.sprite.DirtySprite):
                     # print("GRASS // Agent {}: +{} new score: {}".format(agent.ID, agent.rewards["grass"], agent.Score))
                 elif isinstance(creature, Sheep):
                     creature.Statistics["specialisation"]["collected_food"] +=1
+                    
+                return True
 
-            self.FoodValue = 0
-            self.TileType = MUD
-            self.scale_to(self.TileSize, self.Offset)
+        return False
+
+            
 
     def scale_to(self, tile_size, offset):
 
