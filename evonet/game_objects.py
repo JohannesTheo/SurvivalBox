@@ -69,10 +69,11 @@ SURVIVOR_STATISTICS = {
             "specialisation" : {
                 "steps_as_fireguard" : 0,
                 "steps_as_shepherd"  : 0,
-                "blocked_sheep"  : 0,
-                "hits_from_wolf" : 0,
-                "catched_wolf"   : 0,
-                "collected_food" : 0
+                "blocked_sheep"    : 0,
+                "hits_from_wolf"   : 0,
+                "catched_wolf"     : 0,
+                "energy_from_wolf" : 0,
+                "collected_food"   : 0
             },
             "rewards" : {
                 "reward_from_fire"  : 0,
@@ -422,9 +423,12 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
 
                         for survivor in living_creatures:
                             if isinstance(survivor, Survivor):
-                                survivor.Energy += (creature.StepsAlive * 0.25)
+                                energy_from_wolf = (creature.StepsAlive * 0.25)
+                                survivor.Energy += energy_from_wolf
+                                self.Statistics["specialisation"]["energy_from_wolf"] += energy_from_wolf
 
-                        print("ENERGY FROM WOLF: {}".format(creature.StepsAlive * 0.25))
+                        print("ENERGY FROM WOLF: {}".format(energy_from_wolf))
+                        # reset wolf
                         creature.StepsAlive = 0
 
                         print("WOLF  // Agent {}: +{} new score: {}".format(self.ID, self.rewards["wolf"], self.Score))
