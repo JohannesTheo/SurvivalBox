@@ -260,7 +260,7 @@ class AgentCard(Card):
             next_y = self.BASIC_STATS_Y
             if active: color = Card.orange
             else:      color=None
-            next_x, next_y = self.draw_statistic("Energy: {:3.1f}".format(self.Agent.Energy), (0,next_y), color)
+            next_x, next_y = self.draw_statistic("Energy: {:.2f}".format(self.Agent.Energy), (0,next_y), color)
             next_x, next_y = self.draw_statistic("Reward: {:3.1f}".format(self.Statistics["rewards"]["reward_total"]), (0,next_y), color)
 
         if self.DETAIL_INFO:
