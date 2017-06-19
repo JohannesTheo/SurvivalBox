@@ -1,7 +1,7 @@
 import numpy as np
 
 from ple import PLE
-from evonet import EvoNet
+from survivalbox import SurvivalBox
 
 agent_view_port = {
                     "grid_points_left" : 9,
@@ -10,7 +10,7 @@ agent_view_port = {
                     "grid_points_back" : 10,
                   }
 
-game = EvoNet(grid_width =52, 
+game = SurvivalBox(grid_width =52, 
               grid_height=52,
               tile_size=4, 
               water_percentage=0.5, 

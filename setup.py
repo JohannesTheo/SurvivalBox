@@ -11,9 +11,9 @@ install_requires = [
 ]
 
 setup(
-	name='evonet-sm',
+	name='survival-box',
 	version='0.0.1',
-	description='EvoNet - Survial Mode',
+	description='Survival Box',
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",

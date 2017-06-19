@@ -1,5 +1,5 @@
 import numpy as np
-from evonet import EvoNet 
+from survivalbox import SurvivalBox 
 import pygame
 import matplotlib.pyplot as plt
 
@@ -10,7 +10,7 @@ agent_view_port = {
                     "grid_points_back" : 5,
                   }
 
-game = EvoNet(grid_width =50, 
+game = SurvivalBox(grid_width =50, 
               grid_height=50,
               tile_size=8, 
               water_percentage=0.5, 

@@ -13,7 +13,7 @@ from . import utils
 from .game_objects import Survivor, ViewPort, Fireplace, Sheep, Wolf, create_marker_rect
 from .card import Card, AgentCard, StatisticsCard
 
-class EvoWorld():
+class SandBoxWorld():
     '''
     A class that holds the GameState in:
     TileMap, AgentList

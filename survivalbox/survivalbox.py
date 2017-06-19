@@ -1,5 +1,5 @@
 """
-EvoNet - survival mode.
+SurvivalBox
 This is a game for Multi Agent Reinforcement Learning (MARL)
 """
 __author__ = 'Johannes Theodoridis'
@@ -18,7 +18,7 @@ from   ple.games.base import PyGameWrapper
 from . import environment
 from .game_objects import Survivor
 
-class EvoNet(PyGameWrapper):
+class SurvivalBox(PyGameWrapper):
 
     PIXEL_SCALES = [1, 2, 4, 8, 16]
     # RENDER_MODES
@@ -29,7 +29,7 @@ class EvoNet(PyGameWrapper):
     def __init__(self, grid_width=50, grid_height=50, tile_size=8, water_percentage=0.5, 
                  num_agents=2, always_new_map=False, view_port_dimensions={}, human_game=False, full_map_observation=True):
 
-        print("Welcome to EvoNet - survival mode")
+        print("Welcome to SurvivalBox")
 
         self.ACTIONS = {
                   "up":         K_UP,
@@ -252,7 +252,7 @@ class EvoNet(PyGameWrapper):
             self.rng = np.random.RandomState(24)
 
         if not self.env:
-            self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards, self.FULL_MAP_OBSERVATION)
+            self.env = environment.SandBoxWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards, self.FULL_MAP_OBSERVATION)
             self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions)
 
             # change this also in scale_to...
@@ -290,7 +290,7 @@ class EvoNet(PyGameWrapper):
 
         # Scale everything here!
         if self.MANUAL_GAME_PLAY:
-            if tile_size not in EvoNet.PIXEL_SCALES: return
+            if tile_size not in SurvivalBox.PIXEL_SCALES: return
             print("New Scale: {}".format(tile_size))
 
             #if(tile_size <= 0 or (tile_size*self.Grid_Height) > 1920): return
