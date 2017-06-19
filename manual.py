@@ -16,7 +16,8 @@ game = EvoNet(grid_width =50,
               water_percentage=0.5, 
               num_agents=1,
               view_port_dimensions=agent_view_port,
-              human_game=True)
+              human_game=True,
+              full_map_observation=True)
 
 #nv = PLE(game, display_screen=True,
  #              fps=100,

@@ -109,7 +109,7 @@ class EvoWorld():
         return (self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
     
 
-    def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=1, num_wolf=1, num_fire=1):
+    def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=1, num_wolf=1, num_fire=1, full_map_observation=True):
 
         # Set the rng
         self.rng = rng
@@ -120,20 +120,27 @@ class EvoWorld():
         self.NumWolfs  = num_wolf
         self.NumFires  = num_fire
 
-        if not view_port_dimensions:
-            raise Exception("Please provide a ViewPort dict in the form: {'grid_points_left':a, 'grid_points_right:b', 'grid_points_front':c, 'grid_points_back':d}")
-        
-        # Save the general ViewPort dimensions of the agents
-        self.ViewPort = ViewPort(
-                        view_port_dimensions["grid_points_left" ],
-                        view_port_dimensions["grid_points_right"],
-                        view_port_dimensions["grid_points_front"],
-                        view_port_dimensions["grid_points_back" ])
+        self.FULL_MAP_OBSERVATION = full_map_observation
+        if self.FULL_MAP_OBSERVATION:
+            self.ViewPort = ViewPort(0,0,0,0)
+            self.MAX_VIEW_PORT=9
+            self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
+        else:
 
-        # Calculate the max amount of extra border for clipping our agent Views later
-        ViewPort_Grid = self.ViewPort.get_grid_size()
-        self.MAX_VIEW_PORT = np.max(ViewPort_Grid)
-        self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
+            if not view_port_dimensions:
+                raise Exception("Please provide a ViewPort dict in the form: {'grid_points_left':a, 'grid_points_right:b', 'grid_points_front':c, 'grid_points_back':d}")
+            
+            # Save the general ViewPort dimensions of the agents
+            self.ViewPort = ViewPort(
+                            view_port_dimensions["grid_points_left" ],
+                            view_port_dimensions["grid_points_right"],
+                            view_port_dimensions["grid_points_front"],
+                            view_port_dimensions["grid_points_back" ])
+
+            # Calculate the max amount of extra border for clipping our agent Views later
+            ViewPort_Grid = self.ViewPort.get_grid_size()
+            self.MAX_VIEW_PORT = np.max(ViewPort_Grid)
+            self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
         
         # Create a drawing Surface
         self.MapSurface = pygame.Surface((self.MAPWIDTH  * self.TileSize  + 2 * self.ClippingBorder,

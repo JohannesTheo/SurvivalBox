@@ -27,7 +27,7 @@ class EvoNet(PyGameWrapper):
     MAP_MINI_CARDS = 2
 
     def __init__(self, grid_width=50, grid_height=50, tile_size=8, water_percentage=0.5, 
-                 num_agents=2, always_new_map=False, view_port_dimensions={}, human_game=False):
+                 num_agents=2, always_new_map=False, view_port_dimensions={}, human_game=False, full_map_observation=True):
 
         print("Welcome to EvoNet - survival mode")
 
@@ -50,6 +50,7 @@ class EvoNet(PyGameWrapper):
                 self.ACTIONS["NOOP"]:  "Do nothing"
         }
 
+        self.FULL_MAP_OBSERVATION= full_map_observation
         self.MANUAL_GAME_PLAY = human_game
 
         self.Grid_Width  = grid_width  + 2 # Plus 2 for the border
@@ -252,7 +253,7 @@ class EvoNet(PyGameWrapper):
 
         if not self.env:
             self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards)
-            self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions)
+            self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions, self.FULL_MAP_OBSERVATION)
 
             # change this also in scale_to...
             # only change screen size if they are different from what we requested.
