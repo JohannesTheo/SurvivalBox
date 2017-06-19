@@ -7,7 +7,7 @@ agent_view_port = {
                     "grid_points_left" : 9,
                     "grid_points_right": 10,
                     "grid_points_front": 9,
-                    "grid_points_back" : 10,
+                    "grid_points_back" : 11,
                   }
 
 game = SurvivalBox(grid_width =52, 
