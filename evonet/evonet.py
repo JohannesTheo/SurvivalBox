@@ -27,7 +27,7 @@ class EvoNet(PyGameWrapper):
     MAP_MINI_CARDS = 2
 
     def __init__(self, grid_width=50, grid_height=50, tile_size=8, water_percentage=0.5, 
-                 num_agents=2, always_new_map=False, view_port_dimensions={}):
+                 num_agents=2, always_new_map=False, view_port_dimensions={}, human_game=False):
 
         print("Welcome to EvoNet - survival mode")
 
@@ -36,8 +36,8 @@ class EvoNet(PyGameWrapper):
                   "down":       K_DOWN,
                   "left":       K_LEFT,
                   "right":      K_RIGHT,
-                  "turn_left":  K_COMMA,
-                  "turn_right": K_PERIOD,
+                  #"turn_left":  K_COMMA,
+                  #"turn_right": K_PERIOD,
                   "NOOP"      : K_F15,
                  }
 
@@ -50,6 +50,7 @@ class EvoNet(PyGameWrapper):
                 self.ACTIONS["NOOP"]:  "Do nothing"
         }
 
+        self.MANUAL_GAME_PLAY = human_game
 
         self.Grid_Width  = grid_width  + 2 # Plus 2 for the border
         self.Grid_Height = grid_height + 2 # Plus 2 for the border
@@ -287,14 +288,16 @@ class EvoNet(PyGameWrapper):
     def scale_to(self, tile_size):
 
         # Scale everything here!
+        if self.MANUAL_GAME_PLAY:
+            if tile_size not in EvoNet.PIXEL_SCALES: return
+            print("New Scale: {}".format(tile_size))
 
-        if tile_size not in EvoNet.PIXEL_SCALES: return
-        print("New Scale: {}".format(tile_size))
-
-        #if(tile_size <= 0 or (tile_size*self.Grid_Height) > 1920): return
-        self.TileSize = tile_size
-        self.env.scale_to(self.TileSize)
-        self.reset_screen()
+            #if(tile_size <= 0 or (tile_size*self.Grid_Height) > 1920): return
+            self.TileSize = tile_size
+            self.env.scale_to(self.TileSize)
+            self.reset_screen()
+        else:
+            print("RESCALING NOT ALLOWED!")
         
     def reset_screen(self):
         #self.screen.fill((0,0,0))
@@ -396,4 +399,5 @@ class EvoNet(PyGameWrapper):
         self.env.update(self.screen, action_list)
         
         # While developing update display here, later automatic from _draw_frame
-        pygame.display.update()
+        if self.MANUAL_GAME_PLAY:
+            pygame.display.update()

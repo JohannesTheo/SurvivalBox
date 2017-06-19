@@ -14,7 +14,8 @@ from . import map
 from . import utils
 
 MANUAL=False
-RANDOM=False
+#RANDOM=False
+RANDOM_NPC=False
 
 # orientation
 UP    = 0
@@ -363,7 +364,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         self.ViewPort = view_port
 
         # dynamics
-        self.Energy = 300.
+        self.Energy = 1000.
         self._O_ENERGY = self.Energy
         self.CostMultiplier = 1
         # rewards
@@ -416,7 +417,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                             break
 
                     elif isinstance(creature, Wolf):
-                        print("GOT THE WOLF!")
+                        #print("GOT THE WOLF!")
                         
                         # Apply the reward
                         self.Score += self.rewards["wolf"]
@@ -427,11 +428,11 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                                 survivor.Energy += energy_from_wolf
                                 self.Statistics["specialisation"]["energy_from_wolf"] += energy_from_wolf
 
-                        print("ENERGY FROM WOLF: {}".format(energy_from_wolf))
+                        #print("ENERGY FROM WOLF: {}".format(energy_from_wolf))
                         # reset wolf
                         creature.StepsAlive = 0
 
-                        print("WOLF  // Agent {}: +{} new score: {}".format(self.ID, self.rewards["wolf"], self.Score))
+                        #print("WOLF  // Agent {}: +{} new score: {}".format(self.ID, self.rewards["wolf"], self.Score))
                         
                         # Save the wolfs position for redrawing later
                         dead_wolf_sprites = creature.get_collision_grid()
@@ -600,7 +601,7 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
         action = self.select_move(manual_actions)
 
         # apply the chosen action
-        #self.move(action)
+        self.move(action)
     
         # Check collisions and set the final position
         for point in self.Grid:
@@ -707,7 +708,7 @@ class Sheep(pygame.sprite.DirtySprite, GameObject):
                                  TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
                 action = manual_actions[0]
             
-            elif RANDOM:
+            elif RANDOM_NPC:
                 action = self.select_random_move([FORWARD, TURN_L, TURN_R, STAY])
 
             return action
@@ -806,7 +807,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                         break
 
                 elif isinstance(creature, Sheep):
-                        print("WOLF KILLS THE SHEEP!")
+                        #print("WOLF KILLS THE SHEEP!")
 
                         # Save the sheeps position for redrawing later
                         dead_sheep_sprites = creature.get_collision_grid()
@@ -906,7 +907,7 @@ class Wolf(pygame.sprite.DirtySprite, GameObject):
                              TURN_F  : ANIMAL_TURN_FULL, STAY    : NOOP,             K_F15    : NOOP}
             action = manual_actions[1]
         
-        elif RANDOM:
+        elif RANDOM_NPC:
             action = self.select_random_move([FORWARD, TURN_L, TURN_R, STAY])
 
         return action

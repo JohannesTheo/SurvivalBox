@@ -76,6 +76,7 @@ class Card(pygame.Surface):
         
         # Draw the Card background
         background = (self.margin_out, 0, self.get_width() - 2 * self.margin_out, self.get_height())
+#        pygame.draw.rect(self, self.CardColor, background)
         pygame.draw.rect(self, self.CardColor, background)
 
         # Draw the Card title

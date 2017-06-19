@@ -5,17 +5,18 @@ import matplotlib.pyplot as plt
 
 agent_view_port = {
                     "grid_points_left" : 9,
-                    "grid_points_right": 10,
-                    "grid_points_front": 9,
-                    "grid_points_back" : 10,
+                    "grid_points_right": 9,
+                    "grid_points_front": 5,
+                    "grid_points_back" : 5,
                   }
 
 game = EvoNet(grid_width =50, 
               grid_height=50,
-              tile_size=4, 
+              tile_size=8, 
               water_percentage=0.5, 
-              num_agents=2,
-              view_port_dimensions=agent_view_port)
+              num_agents=1,
+              view_port_dimensions=agent_view_port,
+              human_game=True)
 
 #nv = PLE(game, display_screen=True,
  #              fps=100,
@@ -29,6 +30,8 @@ actions = list(game.getActions())
 print("Actions: {}".format(actions))
 
 game.init()
+# def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=0, num_wolf=0, num_fire=0):
+
 
 rewards = {
             "positive":  1.0, # same as pygamewrapper
@@ -37,9 +40,9 @@ rewards = {
             "loss"    : -5.0, # same as pygamewrapper
             "win"     :  5.0, # same as pygamewrapper
             "grass"   :  1.0,
-            "sheep"   :  5.0,
-            "fire"    :  6.0,
-            "wolf"    :  10.0
+            "sheep"   :  1.0,
+            "fire"    :  1.0,
+            "wolf"    :  1.0
         }
 
 game.adjustRewards(rewards)
@@ -53,7 +56,7 @@ while True:
     if game.game_over():
         game.reset()
 
-    dt = game.tick(20)
+    dt = game.tick(100)
     game.step(dt)
 
     reward = game.getScore() - previous_score

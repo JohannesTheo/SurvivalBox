@@ -438,12 +438,18 @@ class EvoWorld():
         return not survivors
 
     def getScore(self):
-        return self.score
+
+        score = 0
+        for agent in self.AgentList:
+            score += self.AgentList[agent]["Agent"].Score
+        return score
+#        return self.score
 
     def set_active_agent(self, agent):
         self.ActivePlayer = agent
 
     def update(self, screen, action_list):
+        #screen.fill((255,255,255))
 
         if self.game_over(): return
 
@@ -479,7 +485,8 @@ class EvoWorld():
         ###############################################################################     
         
         # Draw the dirty map sprites
-        #self.bord_objects_group.draw(self.MapSurface)
+        #self.MapSurface.fill((255,255,255)) # white background
+        #self.bord_objects_group.draw(self.MapSurface) # all game objects
         self.dirty_sprites_group.draw(self.MapSurface)
 
          # Draw the "living" game objects AFTER the map to ensure that they are always visible
@@ -547,7 +554,7 @@ class EvoWorld():
         screen.blit(HugeMap,(0,0))
 
         for game_object in self.game_objects_group.sprites():
-            # if isinstance(game_object, Sheep):
+            #if isinstance(game_object, Survivor):
             
             if self.DRAW_VIEW_AREAS:
                 ViewPort_scaled = game_object.get_view_scaled(  8, Offset)
@@ -564,7 +571,7 @@ class EvoWorld():
 
             if self.DRAW_VIEW_AREAS:
                 ViewPort_scaled = agent.get_view_scaled(  8, Offset)
-                pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
+                #pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
 
             if self.DRAW_MARKER:
                 # Calculate ViewPort and Orientation Marker with new scale and offset
