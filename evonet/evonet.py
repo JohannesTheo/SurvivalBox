@@ -252,8 +252,8 @@ class EvoNet(PyGameWrapper):
             self.rng = np.random.RandomState(24)
 
         if not self.env:
-            self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards)
-            self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions, self.FULL_MAP_OBSERVATION)
+            self.env = environment.EvoWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards, self.FULL_MAP_OBSERVATION)
+            self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions)
 
             # change this also in scale_to...
             # only change screen size if they are different from what we requested.

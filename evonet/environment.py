@@ -20,7 +20,9 @@ class EvoWorld():
     Applies dynamics based on agent actions and
     can render the World State as well as the Agent Views
     '''
-    def __init__(self, map_width, map_height, water_percentage, init_tile_size, rewards):
+    def __init__(self, map_width, map_height, water_percentage, init_tile_size, rewards, full_map_observation):
+
+        self.FULL_MAP_OBSERVATION = full_map_observation
 
         self.MAPWIDTH = map_width
         self.MAPHEIGHT = map_height
@@ -109,7 +111,7 @@ class EvoWorld():
         return (self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
     
 
-    def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=1, num_wolf=1, num_fire=1, full_map_observation=True):
+    def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=1, num_wolf=1, num_fire=1):
 
         # Set the rng
         self.rng = rng
@@ -120,7 +122,6 @@ class EvoWorld():
         self.NumWolfs  = num_wolf
         self.NumFires  = num_fire
 
-        self.FULL_MAP_OBSERVATION = full_map_observation
         if self.FULL_MAP_OBSERVATION:
             self.ViewPort = ViewPort(0,0,0,0)
             self.MAX_VIEW_PORT=9
@@ -214,8 +215,10 @@ class EvoWorld():
             for agent in self.AgentList:
                 ID = self.AgentList[agent]["ID"]
                 self.CardList[ID] = AgentCard(self.AgentList[agent],
+                                              self.MAPWIDTH,
                                               self.MAPHEIGHT, 
-                                              self.TileSize)
+                                              self.TileSize,
+                                              self.FULL_MAP_OBSERVATION)
 
             self.StatisticsCard = StatisticsCard(self.START_MAP["Stats"], self.START_MAP["Meta"], self.NPC_List, self.rewards)
 
@@ -421,11 +424,13 @@ class EvoWorld():
                 else:
                     player.draw_as_self(self.MapSurface)
 
-            # Get the clipped View of the Agent
-            ClippedView = self.MapSurface.subsurface(ViewPort) #.copy()
-            
-            # Rotate to fix UP view
-            ClippedView = pygame.transform.rotate(ClippedView, agent.Pos[2] * 90)
+            if self.FULL_MAP_OBSERVATION:
+                ClippedView = self.MapSurface.subsurface((self.ClippingBorder,self.ClippingBorder,self.MAPWIDTH*self.TileSize, self.MAPHEIGHT*self.TileSize))
+            else:
+                # Get the clipped View of the Agent
+                ClippedView = self.MapSurface.subsurface(ViewPort) #.copy()
+                # Rotate to fix UP view
+                ClippedView = pygame.transform.rotate(ClippedView, agent.Pos[2] * 90)
             
             # Append to the list
             self.AgentList[myID]["ViewPort"]  = ViewPort.copy()

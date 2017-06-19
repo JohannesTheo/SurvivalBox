@@ -188,7 +188,7 @@ class Card(pygame.Surface):
 
 class AgentCard(Card):
 
-    def __init__(self, agent_entry, map_dimension_y, tile_size, basic=True, detail=True, observation=True):
+    def __init__(self, agent_entry, map_dimension_x, map_dimension_y, tile_size, full_map_obs, basic=True, detail=True, observation=True):
 
 
         self.BASIC_INFO  = basic
@@ -197,8 +197,10 @@ class AgentCard(Card):
 
         # Calculate the total size of the card to init base class
         self.FIX_TILE_SIZE = 8
+        self.MAP_W = map_dimension_x * self.FIX_TILE_SIZE
         self.MAP_H = map_dimension_y * self.FIX_TILE_SIZE
 
+        self.FULL_MAP_OBS = full_map_obs
 
         if tile_size == self.FIX_TILE_SIZE:
             self.OBSERVATION = False
@@ -213,10 +215,14 @@ class AgentCard(Card):
         self.VIEW_W = self.AgentView.get_width() 
         self.VIEW_H = self.AgentView.get_height()
         
-        self.ViewPort_GRID_W = agent_entry["ViewPort_Grid"][0]
-        self.ViewPort_GRID_H = agent_entry["ViewPort_Grid"][1]
-        self.Scaled_VIEW_W   = self.ViewPort_GRID_W * self.FIX_TILE_SIZE
-        self.Scaled_VIEW_H   = self.ViewPort_GRID_H * self.FIX_TILE_SIZE
+        if self.FULL_MAP_OBS:
+            self.Scaled_VIEW_W = self.MAP_W
+            self.Scaled_VIEW_H = self.MAP_H
+        else:
+            self.ViewPort_GRID_W = agent_entry["ViewPort_Grid"][0]
+            self.ViewPort_GRID_H = agent_entry["ViewPort_Grid"][1]
+            self.Scaled_VIEW_W   = self.ViewPort_GRID_W * self.FIX_TILE_SIZE
+            self.Scaled_VIEW_H   = self.ViewPort_GRID_H * self.FIX_TILE_SIZE
 
         self.VIEW_Y  = 0
         self.BASIC_STATS_Y = 0
