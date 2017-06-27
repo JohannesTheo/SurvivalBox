@@ -12,7 +12,7 @@ Four steps to install:
 3. Install: general dependencies from requirements.txt
 4. Optionally: Install SurvivalBox system/env wide
 
-You can clone both, the SurvivalBox and the PLE repository to any place on your system. The install via 'pip install -e .' will link those directories. To uninstall, just call 'pip uninstall <*>' and simply delete the repository directories again.
+You can clone both, the SurvivalBox and the PLE repository to any place on your system. The install via `pip install -e .` will link those directories. To uninstall, just call `pip uninstall <*>` and simply delete the repository directories again.
 
 ### 1 - install PyGame-Learning-Environment from GitHub
 ```bash
