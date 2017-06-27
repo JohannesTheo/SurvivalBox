@@ -401,7 +401,7 @@ class StatisticsCard(Card):
                     SHEEP  = stats["catched_sheep"]
                     CATCHED   = stats["catched_by_survivor"]
                     ATTACK = stats["attacked_survivor"]
-                    next_x, next_y  = self.draw_statistic("Wolf  {}: hunting {} | sheeps {} | attacks {} | died {}".format(ID, HUNTING, SHEEP, ATTACK, CATCHED),(0, next_y))
+                    next_x, next_y  = self.draw_statistic("Wolf  {}: chasing {} | sheep {} | attacks {} | died {}".format(ID, HUNTING, SHEEP, ATTACK, CATCHED),(0, next_y))
                 
                 elif isinstance(NPC, Fireplace):
                     ON       = stats["steps_fire_on"]

@@ -352,7 +352,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
                       K_F15   : NOOP
                     }
 
-    def __init__(self, ID, rewards, view_port, agent_start_pos, size, offset):
+    def __init__(self, ID, rewards, view_port, agent_start_pos, size, offset, life_points):
         
         pygame.sprite.Sprite.__init__(self)
 
@@ -364,7 +364,7 @@ class Survivor(pygame.sprite.DirtySprite, GameObject):
         self.ViewPort = view_port
 
         # dynamics
-        self.Energy = 1000.
+        self.Energy = life_points
         self._O_ENERGY = self.Energy
         self.CostMultiplier = 1
         # rewards

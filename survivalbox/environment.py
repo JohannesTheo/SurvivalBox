@@ -93,8 +93,14 @@ class SandBoxWorld():
         self.WATER_PERCENTAGE = loaded_map["Meta"]["water_percentage"]
 
         ViewPort_Grid = self.ViewPort.get_grid_size()
-        self.MAX_VIEW_PORT = np.max(ViewPort_Grid)
-        self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
+
+        if self.FULL_MAP_OBSERVATION:
+            self.ViewPort = ViewPort(0,0,0,0)
+            self.MAX_VIEW_PORT=9
+            self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
+        else:
+            self.MAX_VIEW_PORT = np.max(ViewPort_Grid)
+            self.ClippingBorder = (self.MAX_VIEW_PORT - 1) * self.TileSize
         
         self.MapSurface = pygame.Surface((self.MAPWIDTH  * self.TileSize  + 2 * self.ClippingBorder,
                                           self.MAPHEIGHT * self.TileSize  + 2 * self.ClippingBorder))
@@ -111,13 +117,14 @@ class SandBoxWorld():
         return (self.MAPWIDTH, self.MAPHEIGHT, self.WATER_PERCENTAGE)
     
 
-    def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=1, num_wolf=1, num_fire=1):
+    def init(self, rng, num_agents=1, agent_life=999, view_port_dimensions={}, num_sheep=0, num_wolf=0, num_fire=0):
 
         # Set the rng
         self.rng = rng
         
         # Set the number of agents
         self.NumAgents = num_agents
+        self.AgentLife = agent_life
         self.NumSheeps = num_sheep
         self.NumWolfs  = num_wolf
         self.NumFires  = num_fire
@@ -168,7 +175,7 @@ class SandBoxWorld():
         for ID in range(num_agents):
 
             start_pos = utils.free_random_position(self.TileMap, self.game_objects_group.sprites())
-            NewAgent = Survivor(ID, self.rewards, self.ViewPort, start_pos, self.TileSize, self.ClippingBorder)
+            NewAgent = Survivor(ID, self.rewards, self.ViewPort, start_pos, self.TileSize, self.ClippingBorder, self.AgentLife)
             
             self.AgentList[ID] = { "ID" : ID, "Agent" : NewAgent, "ViewPort_Grid" : NewAgent.ViewPort.get_grid_dimensions(), "ViewPort" : None, "AgentView" : None}
             # add to groups
@@ -583,7 +590,7 @@ class SandBoxWorld():
 
             if self.DRAW_VIEW_AREAS:
                 ViewPort_scaled = agent.get_view_scaled(  8, Offset)
-                #pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
+                pygame.draw.rect(screen, (0,0,255), ViewPort_scaled, 2)
 
             if self.DRAW_MARKER:
                 # Calculate ViewPort and Orientation Marker with new scale and offset

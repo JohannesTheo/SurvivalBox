@@ -26,38 +26,75 @@ class SurvivalBox(PyGameWrapper):
     MAP_CARDS      = 1
     MAP_MINI_CARDS = 2
 
-    def __init__(self, grid_width=50, grid_height=50, tile_size=8, water_percentage=0.5, 
-                 num_agents=2, always_new_map=False, view_port_dimensions={}, human_game=False, full_map_observation=True):
+    def __init__(self, 
+                 grid_width=50, grid_height=50, tile_size=8, water_percentage=0.5, 
+                 num_agents=2,  agent_life=999, view_port_dimensions={},
+                 num_sheep=1,   num_wolf=1,     num_fire=1, 
+                 turn_actions=False, always_new_map=False,    human_game=False, full_map_observation=True):
 
+
+        if ((num_agents > 3) or (num_agents < 1)): raise Exception("Supported number of agents: 1-3. Given: %s" % num_agents)
         print("Welcome to SurvivalBox")
 
-        self.ACTIONS = {
+
+        # Configure available actions
+        self.TURN_ACTIONS = turn_actions
+
+        if self.TURN_ACTIONS:
+            self.ACTIONS = {
                   "up":         K_UP,
                   "down":       K_DOWN,
                   "left":       K_LEFT,
                   "right":      K_RIGHT,
-                  #"turn_left":  K_COMMA,
-                  #"turn_right": K_PERIOD,
                   "NOOP"      : K_F15,
+                  "turn_left":  K_COMMA,
+                  "turn_right": K_PERIOD
                  }
 
-        self.ActionKeyMap = {
+            self.ActionKeyMap = {
+
+                self.ACTIONS["up"]:    "Move Forward",
+                self.ACTIONS["down"]:  "Move Backward",
+                self.ACTIONS["left"]:  "Move Left",
+                self.ACTIONS["right"]: "Move Right",
+                self.ACTIONS["NOOP"]:  "Do nothing",
+                self.ACTIONS["turn_left"]:  "Turn Left",
+                self.ACTIONS["turn_right"]: "Turn Right"
+            }
+        else:
+            self.ACTIONS = {
+                  "up":         K_UP,
+                  "down":       K_DOWN,
+                  "left":       K_LEFT,
+                  "right":      K_RIGHT,
+                  "NOOP"      : K_F15
+                 }
+
+            self.ActionKeyMap = {
 
                 self.ACTIONS["up"]:    "Move Forward",
                 self.ACTIONS["down"]:  "Move Backward",
                 self.ACTIONS["left"]:  "Move Left",
                 self.ACTIONS["right"]: "Move Right",
                 self.ACTIONS["NOOP"]:  "Do nothing"
-        }
+            }
 
+        
+        # General Game Init
         self.FULL_MAP_OBSERVATION= full_map_observation
         self.MANUAL_GAME_PLAY = human_game
 
-        self.Grid_Width  = grid_width  + 2 # Plus 2 for the border
-        self.Grid_Height = grid_height + 2 # Plus 2 for the border
+        self.Grid_Width  = grid_width  #+ 2 # Plus 2 for the border
+        self.Grid_Height = grid_height #+ 2 # Plus 2 for the border
         self.TileSize    = tile_size
         self.WATER_PERCENTAGE = water_percentage
+        
         self.NUM_AGENTS = num_agents
+        self.AGENT_LIFE = agent_life
+        self.NUM_SHEEP  = num_sheep
+        self.NUM_WOLF   = num_wolf
+        self.NUM_FIRE   = num_fire
+
         self.random_agent = False
         self.env = None
         self.ALWAYS_NEW_MAP = always_new_map
@@ -253,7 +290,7 @@ class SurvivalBox(PyGameWrapper):
 
         if not self.env:
             self.env = environment.SandBoxWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards, self.FULL_MAP_OBSERVATION)
-            self.env.init(self.rng, self.NUM_AGENTS, self.view_port_dimensions)
+            self.env.init(self.rng, self.NUM_AGENTS, self.AGENT_LIFE, self.view_port_dimensions, self.NUM_SHEEP, self.NUM_WOLF, self.NUM_FIRE)
 
             # change this also in scale_to...
             # only change screen size if they are different from what we requested.
@@ -326,6 +363,7 @@ class SurvivalBox(PyGameWrapper):
         action_list = []
 
         # if random agent is activated choose Actions for every agent
+        self.random_agent = False
         if self.random_agent:
             action_list = [np.random.choice(list( self.ACTIONS.values())) for i in range(self.NUM_AGENTS)]
         else:
@@ -361,8 +399,14 @@ class SurvivalBox(PyGameWrapper):
                     self.env.toggle_cards()
                     self.reset_screen()
                 elif event.key == K_SPACE:
-                    print("SPACE")
-                    self.random_agent = not self.random_agent
+                    if self.MANUAL_GAME_PLAY:
+                        print("NEW MAP/RESET MAP")
+                        self.env.reset(self.ALWAYS_NEW_MAP)
+                        #self.random_agent = not self.random_agent
+                elif event.key == K_r:
+                    if self.MANUAL_GAME_PLAY:
+                        print("RESET MAP")
+                        self.env.reset()
                 elif event.key == K_TAB:
                     self.ActivePlayer += 1
                     if self.ActivePlayer >= self.NUM_AGENTS:
@@ -377,22 +421,24 @@ class SurvivalBox(PyGameWrapper):
                     # Pass the action to the active agent
                     if event.key == K_UP:
                         action_list[self.ActivePlayer] = self.ACTIONS["up"]
-                        #print("U")
+                        #print("MOVE FORWARD")
                     elif event.key == K_DOWN:
                         action_list[self.ActivePlayer] = self.ACTIONS["down"]
-                        #print("D")
+                        #print("MOVE BACKWARD")
                     elif event.key == K_LEFT:
                         action_list[self.ActivePlayer] = self.ACTIONS["left"]
-                        #print("L")
+                        #print("MOVE LEFT")
                     elif event.key == K_RIGHT:
                         action_list[self.ActivePlayer] = self.ACTIONS["right"]
-                        #print("R")
+                        #print("MOVE RIGHT")
                     elif event.key == K_COMMA:
-                        action_list[self.ActivePlayer] = self.ACTIONS["turn_left"]
-                        #print("T LEFT")
+                        if self.TURN_ACTIONS:
+                            action_list[self.ActivePlayer] = self.ACTIONS["turn_left"]
+                            #print("TURN LEFT")
                     elif event.key == K_PERIOD:
-                        action_list[self.ActivePlayer] = self.ACTIONS["turn_right"]
-                        #print("T RIGHT")
+                        if self.TURN_ACTIONS:
+                            action_list[self.ActivePlayer] = self.ACTIONS["turn_right"]
+                            #print("TURN RIGHT")
                     else:
                         action_list[self.ActivePlayer] = self.ACTIONS["NOOP"]              
                 
