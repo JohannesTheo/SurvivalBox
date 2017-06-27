@@ -1,8 +1,33 @@
-import numpy as np
 from survivalbox import SurvivalBox 
-import pygame
-import matplotlib.pyplot as plt
 
+# ####################################################################
+# GENERAL GAME CONTROL KEYS:
+#
+# Control-C -> QUIT GAME
+# 3 -> ON/OFF observation window grid 
+# 4 -> ON/OFF orientation marker
+# 5 -> ON/OFF scaled map rendering if TileSize < 8
+# 6 -> ON/OFF Meta Info Cards 
+#
+# ####################################################################
+# IF OPTION: human_game=True
+#
+# UP, DOWN, LEFT, RIGHT -> Control Agent Movement
+# COMMA, PERIOD ---------> Turn L/R: Requires also `turn_actions=True`
+#
+# 1 -> Scale Down TileSize
+# 2 -> Scale UP   TileSize
+# 7 -> Scale Down MapSize
+# 8 -> Scale UP   MapSize
+# 9 -> Scale Down MapHeight
+# 0 -> Scale UP   MapHeight
+# R -----> Reset Map       
+# SPACE -> New Map:                Requires also `always_new_map=True`
+# TAB ---> Switch Agent Control 
+# ####################################################################
+
+
+# define observation window, requires option: full_map_observation=False to be applied
 agent_view_port = {
                     "grid_points_left" : 9,
                     "grid_points_right": 10,
@@ -10,30 +35,24 @@ agent_view_port = {
                     "grid_points_back" : 10,
                   }
 
-game = SurvivalBox(grid_width =50, 
-                   grid_height=50,
-                   tile_size=4, 
-                   water_percentage=0.5, 
-                   num_agents=1,
-                   agent_life=500,
-                   num_sheep=1,
-                   num_wolf=1,
-                   num_fire=1,
-                   view_port_dimensions=agent_view_port,
-                   turn_actions=True,
-                   always_new_map=True,
-                   human_game=True,
-                   full_map_observation=True)
+# general game configuration
+game = SurvivalBox(grid_width =50, grid_height=50, tile_size=8, water_percentage=0.5, 
+                   num_agents=3,   agent_life=700, num_sheep=1, num_wolf=1, num_fire=1,
+                   turn_actions=True, view_port_dimensions=agent_view_port, full_map_observation=False,
+                   always_new_map=False,  human_game=True,
+                   )
 
-
+# call setup manually
 game._setup()
+
+# print available action keys
 actions = list(game.getActions())
 print("Actions: {}".format(actions))
 
+# init the game
 game.init()
-# def init(self, rng, num_agents=1, view_port_dimensions={}, num_sheep=0, num_wolf=0, num_fire=0):
 
-
+# define custom rewards and inject them
 rewards = {
             "positive":  1.0, # same as pygamewrapper
             "negative": -1.0, # same as pygamewrapper
@@ -49,19 +68,25 @@ rewards = {
 game.adjustRewards(rewards)
 
 
-
+# set initial score to 0 
 previous_score = 0
+
+# game loop
 while True:
+    # if the game is over, reset
     if game.game_over():
         game.reset()
         previous_score = 0
 
+    # control frames per second in manual mode
     dt = game.tick(20)
+    # step the game forward one time step
     game.step(dt)
 
+    # receive the reward like a RL agent
     reward = game.getScore() - previous_score
     previous_score = game.getScore()
-    observation = game.getScreenRGB()[0]
-   
     #print(reward)
-    #print(env.getFrameNumber())
+
+    # receive the observation
+    observation = game.getScreenRGB()[0]
