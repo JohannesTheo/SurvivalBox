@@ -23,7 +23,7 @@ game = SurvivalBox(grid_width =50,
                    turn_actions=True,
                    always_new_map=True,
                    human_game=True,
-                   full_map_observation=False)
+                   full_map_observation=True)
 
 
 game._setup()

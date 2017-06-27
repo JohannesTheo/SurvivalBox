@@ -6,8 +6,7 @@ from setuptools import setup
 here = os.path.abspath(os.path.dirname(__file__))
 
 install_requires = [
-    "ple",
-    "gym-ple"
+    "ple"
 ]
 
 setup(
@@ -23,7 +22,7 @@ setup(
     ],
 	url='',
 	author='Johannes Theodoridis',
-	author_email='first letter of first name plus first letter of last name plus 031 at hdm-stuttgart.de.',
+	author_email='first lower case letter of first name plus first lower case letter of last name plus 031 at hdm-stuttgart.de',
 	keywords='',
 	license="MIT",
 	packages=find_packages(),
