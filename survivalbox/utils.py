@@ -38,7 +38,15 @@ def random_position(tile_map, forbidden_types=[], min_space=1, random_orientatio
 
         # generate a position candidate
         valid_pos = False
+        tries = 0
         while not valid_pos:
+            if tries >= 10000: raise Exception("{} {} {} {}".format(
+                                              "WARNING: We tried {} times to find a valid position of size ({},{}).".format(tries, min_space, min_space),
+                                              "It is either impossible or very unlikely to place the",
+                                              "object according to the given restrictions {}.".format(forbidden_types),
+                                              "Please consider a bigger map size than {}, or reduce the number of GameObjects!".format(tile_map.shape)))
+
+            tries += 1
 
             X = np.random.randint(1, MAX_WIDTH)   # Lower Bound is inklusive
             Y = np.random.randint(1, MAX_HEIGHT)  # Upper Bound is exklusive
@@ -73,17 +81,17 @@ def free_random_position(tile_map, objects, forbidden_types=[], min_space=1, ran
         point in that area is of a forbidden type or is blocked by another game_object, the candidate will be rejected.
         '''        
         pos_free = False
-        #tries = 0
+        tries = 0
         while not pos_free:
-            '''
-            if tries >= 5000: raise Exception("{} {} {} {}".format(
+            
+            if tries >= 10000: raise Exception("{} {} {} {}".format(
                                               "WARNING: We tried {} times to place an object of size ({},{}).".format(tries, min_space, min_space),
                                               "It is either impossible or very unlikely to place the",
                                               "object according to the given restrictions {}.".format(forbidden_types),
                                               "Please consider a bigger map size than {}, or reduce the number of GameObjects!".format(tile_map.shape)))
 
             tries += 1
-            '''
+            
             pos_free = True
             candidate = random_position(tile_map, forbidden_types, min_space, random_orientation)
             candidate_grid = grid_from_position(candidate, min_space, min_space)

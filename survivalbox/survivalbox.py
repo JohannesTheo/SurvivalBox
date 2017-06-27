@@ -302,6 +302,15 @@ class SurvivalBox(PyGameWrapper):
 
         #print("Init")
 
+    def new_map(self):
+        print("NEW MAP DIMENSIONS: %s x %s" % (self.Grid_Width, self.Grid_Height))
+        self.env = environment.SandBoxWorld(self.Grid_Width, self.Grid_Height, self.WATER_PERCENTAGE, self.TileSize, self.rewards, self.FULL_MAP_OBSERVATION)
+        self.env.init(self.rng, self.NUM_AGENTS, self.AGENT_LIFE, self.view_port_dimensions, self.NUM_SHEEP, self.NUM_WOLF, self.NUM_FIRE)
+
+        # change this also in scale_to...
+        # only change screen size if they are different from what we requested.
+        self.screen_dim = self.env.get_screen_dimensions()
+        self.screen = pygame.display.set_mode(self.getScreenDims(), 0, 32)
     
     def reset(self):
         """
@@ -414,6 +423,30 @@ class SurvivalBox(PyGameWrapper):
 
                     self.env.set_active_agent(self.ActivePlayer)
                     # env activate player....
+
+                # If it is a human game, allow for manual resize of map dimenisons
+                if self.MANUAL_GAME_PLAY:
+                    if event.key == K_7:
+                        self.Grid_Width  -= 5
+                        self.Grid_Height -= 5
+
+                        if self.Grid_Width < 10:
+                            self.Grid_Width = 10
+                        if self.Grid_Height < 10:
+                            self.Grid_Height = 10
+                        self.new_map()
+                    if event.key == K_8:
+                        self.Grid_Width += 5
+                        self.Grid_Height += 5
+                        self.new_map()
+                    elif event.key == K_9:
+                        self.Grid_Height -= 5
+                        if self.Grid_Height < 10:
+                            self.Grid_Height = 10
+                        self.new_map()
+                    elif event.key == K_0:
+                        self.Grid_Height += 5
+                        self.new_map()   
 
                 # manual control only if no random agent is acting
                 if not self.random_agent:
