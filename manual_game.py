@@ -38,8 +38,8 @@ agent_view_port = {
 # general game configuration
 game = SurvivalBox(grid_width =50, grid_height=50, tile_size=8, water_percentage=0.5, 
                    num_agents=3,   agent_life=700, num_sheep=1, num_wolf=1, num_fire=1,
-                   turn_actions=True, view_port_dimensions=agent_view_port, full_map_observation=False,
-                   always_new_map=False,  human_game=True,
+                   turn_actions=True,   view_port_dimensions=agent_view_port, full_map_observation=False,
+                   always_new_map=True, human_game=True,
                    )
 
 # call setup manually
