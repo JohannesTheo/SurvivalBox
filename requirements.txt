@@ -1,5 +1,5 @@
-numpy==1.13.0
-olefile==0.44
-Pillow==4.1.1
-pygame==1.9.3
-scipy==0.19.1
+numpy
+olefile
+Pillow
+pygame
+scipy
